@@ -251,7 +251,12 @@ body {
 .chart-area { padding:16px 16px 8px; overflow-x:auto; }
 .chart-bars {
   display:flex; gap:6px; align-items:flex-end;
-  height:110px; padding-bottom:4px; min-width:max-content;
+  height:140px; padding-bottom:4px; min-width:max-content;
+}
+.bar-val {
+  font-size:8px; color:var(--text-light); font-weight:600;
+  text-align:center; line-height:1.2; margin-bottom:2px;
+  white-space:nowrap;
 }
 .bar-col { display:flex; flex-direction:column; align-items:center; gap:3px; }
 .bar {
@@ -401,15 +406,7 @@ body {
   </div>
 
   <div class="pullup">
-    <!-- Sheet URL badge -->
-    <div class="sheet-url-badge" onclick="openSheetModal()" style="margin:0 0 14px;">
-      <span class="icon">📊</span>
-      <div>
-        <div class="txt">Google Sheets</div>
-        <div class="sub" id="sheetUrlLabel">แตะเพื่อตั้งค่า URL</div>
-      </div>
-      <span style="margin-left:auto;color:var(--text-light);font-size:14px;">⚙️</span>
-    </div>
+
 
     <div id="syncStatusHome"></div>
 
@@ -418,8 +415,11 @@ body {
     <div class="member-grid" id="memberGrid"></div>
 
     <!-- Global totals -->
-    <div class="section-title">📈 รวมทั้งครอบครัว</div>
-    <div class="summary-row" id="familySummary"></div>
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>📈 รวมทั้งครอบครัว</span>
+      <span onclick="showFamilyScreen()" style="font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;">ดูรายละเอียด ›</span>
+    </div>
+    <div class="summary-row" id="familySummary" onclick="showFamilyScreen()" style="cursor:pointer;"></div>
   </div>
 </div>
 
@@ -494,20 +494,11 @@ body {
 <div class="screen" id="scr-settings">
   <div class="hero" style="padding-bottom:40px;">
     <h1>⚙️ ตั้งค่า</h1>
-    <p>จัดการสมาชิกและ Google Sheets</p>
+    <p>จัดการสมาชิก</p>
   </div>
   <div class="pullup">
-    <div class="section-title" style="padding-top:0;">📊 Google Sheets</div>
-    <div class="card" style="margin:0 16px 14px;">
-      <div class="form-wrap">
-        <div class="form-group">
-          <label class="form-lbl">Apps Script Web App URL</label>
-          <input type="url" class="form-input" id="settingsSheetUrl" placeholder="https://script.google.com/...">
-        </div>
-        <button class="btn-primary" onclick="saveSheetUrl()">💾 บันทึก URL</button>
-      </div>
-    </div>
-    <div class="section-title">👤 จัดการสมาชิก</div>
+
+    <div class="section-title" style="padding-top:0;">👤 จัดการสมาชิก</div>
     <div class="card" style="margin:0 16px 14px;" id="memberSettings"></div>
     <div style="padding:0 16px 16px;">
       <button class="btn-primary" onclick="openAddMemberModal()">➕ เพิ่มสมาชิก</button>
@@ -520,6 +511,22 @@ body {
       </div>
     </div>
   </div>
+</div>
+
+
+<!-- ══════════════════ SCREEN: FAMILY OVERVIEW ══════════════════ -->
+<div class="screen" id="scr-family">
+  <div class="topbar">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <h2>👨‍👩‍👧‍👦 รวมทั้งครอบครัว</h2>
+  </div>
+  <div class="summary-row" style="padding-top:14px;" id="familyTotalSummary"></div>
+  <div class="section-title" style="padding-top:4px;">📊 เปรียบเทียบรายคน</div>
+  <div class="card" style="margin:0 16px 14px;">
+    <div class="chart-area" id="familyCompareChart"></div>
+  </div>
+  <div class="section-title">👤 แยกตามสมาชิก</div>
+  <div style="padding:0 16px;" id="familyMemberList"></div>
 </div>
 
 <!-- ══════════════════ BOTTOM NAV ══════════════════ -->
@@ -556,20 +563,7 @@ body {
   </div>
 </div>
 
-<!-- ══════════════════ MODAL: Sheet URL ══════════════════ -->
-<div class="modal-overlay" id="modalSheet">
-  <div class="modal">
-    <h3>📊 ตั้งค่า Google Sheets</h3>
-    <p style="font-size:13px;color:var(--text-light);margin-bottom:16px;">วาง URL ของ Google Apps Script Web App</p>
-    <div class="form-group">
-      <input type="url" class="form-input" id="modalSheetUrl" placeholder="https://script.google.com/macros/s/...">
-    </div>
-    <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeModal('modalSheet')">ยกเลิก</button>
-      <button class="btn-primary" onclick="saveSheetUrlFromModal()">บันทึก</button>
-    </div>
-  </div>
-</div>
+
 
 <div class="toast" id="toast"></div>
 
@@ -834,9 +828,14 @@ function renderMonthDetail() {
   const maxSteps = Math.max(...entries.map(e=>e.steps), 1);
   const mc = document.getElementById('monthChart');
   mc.innerHTML = `<div class="chart-bars">${entries.map(e=>{
-    const h = Math.max(4, (e.steps/maxSteps)*90);
+    const h = Math.max(4, (e.steps/maxSteps)*100);
     const fd = fmtDate(e.date);
-    return `<div class="bar-col"><div class="bar" style="height:${h}px" title="${fd.day} ${fd.month}"></div><div class="bar-lbl">${fd.day}</div></div>`;
+    const kSteps = e.steps >= 1000 ? (e.steps/1000).toFixed(1)+'k' : e.steps;
+    return `<div class="bar-col">
+      <div class="bar-val">${kSteps}</div>
+      <div class="bar" style="height:${h}px" title="${fd.day} ${fd.month}: ${e.steps.toLocaleString()} ก้าว"></div>
+      <div class="bar-lbl">${fd.day}</div>
+    </div>`;
   }).join('')}</div>`;
 
   // Day list
@@ -993,7 +992,6 @@ function renderSettings() {
       <button class="icon-btn btn-del" onclick="deleteMember('${m.id}')">🗑️</button>
     </div>`).join('') || `<div class="empty-state" style="padding:24px;">ไม่มีสมาชิก</div>`;
 
-  document.getElementById('settingsSheetUrl').value = state.sheetUrl || '';
 }
 
 function editMember(id) {
@@ -1019,32 +1017,13 @@ function deleteMember(id) {
 // ══════════════════════════════════════════════
 //  GOOGLE SHEETS SYNC
 // ══════════════════════════════════════════════
-function updateSheetLabel() {
-  const lbl = document.getElementById('sheetUrlLabel');
-  lbl.textContent = state.sheetUrl ? '✅ เชื่อมต่อแล้ว' : 'แตะเพื่อตั้งค่า URL';
-}
+function updateSheetLabel() {}
 
-function openSheetModal() {
-  document.getElementById('modalSheetUrl').value = state.sheetUrl || '';
-  document.getElementById('modalSheet').classList.add('open');
-}
+function openSheetModal() {}
 
-function saveSheetUrlFromModal() {
-  const url = document.getElementById('modalSheetUrl').value.trim();
-  state.sheetUrl = url;
-  persist();
-  closeModal('modalSheet');
-  updateSheetLabel();
-  showToast('✅ บันทึก URL แล้ว', 'success');
-}
+function saveSheetUrlFromModal() {}
 
-function saveSheetUrl() {
-  const url = document.getElementById('settingsSheetUrl').value.trim();
-  state.sheetUrl = url;
-  persist();
-  updateSheetLabel();
-  showToast('✅ บันทึก URL แล้ว', 'success');
-}
+function saveSheetUrl() {}
 
 async function sheetRequest(payload) {
   if (!state.sheetUrl) { showToast('⚠️ ยังไม่ได้ตั้งค่า Sheet URL', 'error'); return null; }
@@ -1125,6 +1104,88 @@ function showToast(msg, type = '') {
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
 });
+
+// ══════════════════════════════════════════════
+//  FAMILY OVERVIEW SCREEN
+// ══════════════════════════════════════════════
+function showFamilyScreen() {
+  showScreen('scr-family');
+  renderFamilyScreen();
+}
+
+function renderFamilyScreen() {
+  const allEntries = state.members.flatMap(m => m.entries);
+  const fSteps    = allEntries.reduce((s,e)=>s+e.steps,0);
+  const fActivity = allEntries.reduce((s,e)=>s+e.activity,0);
+  const fEarn     = allEntries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0);
+  const fDays     = new Set(allEntries.map(e=>e.date)).size;
+
+  // Summary pills
+  document.getElementById('familyTotalSummary').innerHTML = `
+    <div class="sum-pill"><div class="lbl">👟 ก้าวรวม</div><div class="val" style="color:#7C4DFF">${fmt(fSteps)}</div><div class="unit">ก้าว</div></div>
+    <div class="sum-pill"><div class="lbl">🏃 กิจกรรม</div><div class="val" style="color:var(--green)">${fmt(fActivity)}</div><div class="unit">ครั้ง</div></div>
+    <div class="sum-pill"><div class="lbl">💰 รางวัลรวม</div><div class="val" style="color:var(--gold)">${fmt(Math.round(fEarn*100)/100)}</div><div class="unit">บาท</div></div>
+    <div class="sum-pill"><div class="lbl">📅 วันรวม</div><div class="val" style="color:#FF6B9D">${fDays}</div><div class="unit">วัน</div></div>`;
+
+  // Compare bar chart — earn per member
+  const earns = state.members.map(m => ({
+    name: m.name, emoji: m.emoji, gradient: m.gradient,
+    earn: m.entries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0)
+  }));
+  const maxEarn = Math.max(...earns.map(x=>x.earn), 1);
+  const cc = document.getElementById('familyCompareChart');
+  cc.innerHTML = `<div class="chart-bars" style="justify-content:center;gap:16px;">${earns.map(x=>{
+    const h = Math.max(4, (x.earn/maxEarn)*90);
+    return `<div class="bar-col">
+      <div style="font-size:11px;color:var(--gold);font-weight:600;margin-bottom:2px;">${Math.round(x.earn)} ฿</div>
+      <div class="bar g${x.gradient}" style="height:${h}px;background:${GRADIENT_COLORS[x.gradient]};opacity:0.85;"></div>
+      <div class="bar-lbl" style="font-size:11px;">${x.emoji} ${x.name}</div>
+    </div>`;
+  }).join('')}</div>`;
+
+  // Member list — each clickable → go to member dashboard
+  const ml = document.getElementById('familyMemberList');
+  ml.innerHTML = state.members.map(m => {
+    const t = memberTotals(m);
+    const grouped = groupByMonth(m.entries);
+    const monthCount = Object.keys(grouped).length;
+    return `<div class="card" style="margin-bottom:12px;cursor:pointer;" onclick="openMemberFromFamily('${m.id}')">
+      <div style="padding:16px 18px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <div class="cp g${m.gradient}" style="width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">${m.emoji}</div>
+          <div style="flex:1;">
+            <div style="font-family:'Mitr',sans-serif;font-size:17px;font-weight:600;">${m.name}</div>
+            <div style="font-size:11px;color:var(--text-light);">${t.days} วัน · ${monthCount} เดือน</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:'Mitr',sans-serif;font-size:18px;font-weight:600;color:var(--gold);">${fmt(Math.round(t.totalEarn*100)/100)} ฿</div>
+            <div style="font-size:10px;color:var(--text-light);">รางวัลสะสม</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;background:#F5F0FF;border-radius:10px;padding:8px 10px;">
+            <div style="font-size:10px;color:var(--text-light);">👟 ก้าวรวม</div>
+            <div style="font-family:'Mitr',sans-serif;font-size:14px;font-weight:600;color:#7C4DFF;">${fmt(t.totalSteps)}</div>
+          </div>
+          <div style="flex:1;background:var(--green-pale);border-radius:10px;padding:8px 10px;">
+            <div style="font-size:10px;color:var(--text-light);">🏃 กิจกรรม</div>
+            <div style="font-family:'Mitr',sans-serif;font-size:14px;font-weight:600;color:var(--green);">${fmt(t.totalActivity)}</div>
+          </div>
+          <div style="flex:1;background:var(--gold-pale);border-radius:10px;padding:8px 10px;text-align:center;">
+            <div style="font-size:10px;color:#9E7A00;">ดูรายละเอียด</div>
+            <div style="font-size:18px;">›</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('') || `<div class="empty-state"><div class="ei">👥</div>ไม่มีสมาชิก</div>`;
+}
+
+function openMemberFromFamily(memberId) {
+  state.activeMemberId = memberId;
+  showScreen('scr-member');
+  renderMemberScreen();
+}
 
 init();
 </script>
