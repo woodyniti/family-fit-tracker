@@ -464,6 +464,17 @@ body {
         <label class="form-lbl">🏃 กิจกรรมทั่วไป</label>
         <input type="number" class="form-input" id="inputActivity" placeholder="เช่น 5000" oninput="updatePreview()">
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-lbl">🔥 แคลอรี่ <span style="font-size:12px;color:var(--text-light);font-weight:400;">(ไม่บังคับ)</span></label>
+          <input type="number" class="form-input" id="inputKcal" placeholder="เช่น 350" step="0.1">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-lbl">📍 ระยะทาง <span style="font-size:12px;color:var(--text-light);font-weight:400;">(ไม่บังคับ)</span></label>
+          <input type="number" class="form-input" id="inputDist" placeholder="กม. เช่น 5.2" step="0.01">
+        </div>
+      </div>
+      <div style="margin-bottom:14px;"></div>
       <div class="preview-earn">
         <div>
           <div class="pe-lbl">💰 รางวัลที่จะได้</div>
@@ -818,12 +829,16 @@ function renderMonthDetail() {
   const totalSteps = entries.reduce((s,e)=>s+e.steps,0);
   const totalActivity = entries.reduce((s,e)=>s+e.activity,0);
   const totalEarn = entries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0);
+  const totalKcal = entries.reduce((s,e)=>s+(e.kcal||0),0);
+  const totalDist = entries.reduce((s,e)=>s+(e.dist||0),0);
 
   document.getElementById('monthSummary').innerHTML = `
     <div class="sum-pill"><div class="lbl">👟 ก้าวรวม</div><div class="val" style="color:var(--accent)">${fmt(totalSteps)}</div><div class="unit">ก้าว</div></div>
     <div class="sum-pill"><div class="lbl">🏃 กิจกรรม</div><div class="val" style="color:var(--green)">${fmt(totalActivity)}</div><div class="unit">ครั้ง</div></div>
     <div class="sum-pill"><div class="lbl">💰 รางวัล</div><div class="val" style="color:var(--gold)">${fmt(Math.round(totalEarn*100)/100)}</div><div class="unit">บาท</div></div>
-    <div class="sum-pill"><div class="lbl">📅 วัน</div><div class="val" style="color:#FF6B9D">${entries.length}</div><div class="unit">วัน</div></div>`;
+    <div class="sum-pill"><div class="lbl">📅 วัน</div><div class="val" style="color:#FF6B9D">${entries.length}</div><div class="unit">วัน</div></div>
+    ${totalKcal > 0 ? `<div class="sum-pill"><div class="lbl">🔥 แคลอรี่</div><div class="val" style="color:#FF6B00">${fmt(Math.round(totalKcal))}</div><div class="unit">kcal</div></div>` : ''}
+    ${totalDist > 0 ? `<div class="sum-pill"><div class="lbl">📍 ระยะทาง</div><div class="val" style="color:#00A0C0">${fmt(Math.round(totalDist*10)/10)}</div><div class="unit">กม.</div></div>` : ''}`;
 
   // Bar chart (steps per day)
   const maxSteps = Math.max(...entries.map(e=>e.steps), 1);
@@ -851,8 +866,8 @@ function renderMonthDetail() {
     return `<div class="day-item">
       <div class="day-badge"><div class="d">${fd.day}</div><div class="m">${fd.month}</div></div>
       <div class="day-info">
-        <div class="day-stats-row"><span>👟 ${fmt(e.steps)} ก้าว</span><span>🏃 ${fmt(e.activity)}</span></div>
-        <div class="day-earn">+ ${earn.toFixed(2)} ฿</div>
+        <div class="day-stats-row"><span>👟 ${fmt(e.steps)} ก้าว</span><span>🏃 ${fmt(e.activity)}</span>${e.dist ? `<span>📍 ${e.dist} กม.</span>` : ''}</div>
+        <div class="day-earn">+ ${earn.toFixed(2)} ฿ ${e.kcal ? `<span style="font-size:13px;color:var(--text-light);font-weight:600;margin-left:8px;">🔥 ${e.kcal} kcal</span>` : ''}</div>
         <div class="day-earn-detail">เดิน ${(e.steps*STEPS_RATE).toFixed(2)} + กิจกรรม ${(e.activity*ACTIVITY_RATE).toFixed(2)}</div>
       </div>
       <div class="day-actions">
@@ -887,6 +902,8 @@ function saveEntry() {
   const dateVal = document.getElementById('inputDate').value;
   const steps = parseInt(document.getElementById('inputSteps').value) || 0;
   const activity = parseInt(document.getElementById('inputActivity').value) || 0;
+  const kcal = parseFloat(document.getElementById('inputKcal').value) || null;
+  const dist = parseFloat(document.getElementById('inputDist').value) || null;
   const editId = document.getElementById('editEntryId').value;
 
   if (!dateVal) { showToast('⚠️ กรุณาเลือกวันที่', 'error'); return; }
@@ -894,18 +911,20 @@ function saveEntry() {
 
   if (editId) {
     const idx = m.entries.findIndex(e => e.id === editId);
-    if (idx >= 0) { m.entries[idx] = { id: editId, date: dateVal, steps, activity }; }
+    if (idx >= 0) { m.entries[idx] = { id: editId, date: dateVal, steps, activity, kcal, dist }; }
     document.getElementById('editEntryId').value = '';
     showToast('✅ แก้ไขแล้ว', 'success');
   } else {
     if (m.entries.find(e => e.date === dateVal)) { showToast('⚠️ วันที่นี้มีข้อมูลแล้ว', 'error'); return; }
-    m.entries.push({ id: 'e' + Date.now(), date: dateVal, steps, activity });
+    m.entries.push({ id: 'e' + Date.now(), date: dateVal, steps, activity, kcal, dist });
     showToast('✅ บันทึกแล้ว', 'success');
   }
 
   persist();
   document.getElementById('inputSteps').value = '';
   document.getElementById('inputActivity').value = '';
+  document.getElementById('inputKcal').value = '';
+  document.getElementById('inputDist').value = '';
   updatePreview();
   setDefaultDate();
   renderMemberScreen();
@@ -921,6 +940,8 @@ function editEntry(entryId) {
   document.getElementById('inputDate').value = entry.date;
   document.getElementById('inputSteps').value = entry.steps;
   document.getElementById('inputActivity').value = entry.activity;
+  document.getElementById('inputKcal').value = entry.kcal || '';
+  document.getElementById('inputDist').value = entry.dist || '';
   updatePreview();
 
   // Go back to member screen, scroll form into view
