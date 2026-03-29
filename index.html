@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏃 Family Fit Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=Mitr:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F5F0FF;
+  --card: #FFFFFF;
+  --radius: 22px;
+  --radius-sm: 14px;
+  --shadow: 0 6px 24px rgba(100,60,180,0.10);
+  --shadow-lg: 0 12px 40px rgba(100,60,180,0.18);
+
+  /* Per-user accent colors (set dynamically) */
+  --accent: #7C4DFF;
+  --accent2: #B388FF;
+  --accent-pale: #EDE7FF;
+
+  --text: #2D1B5E;
+  --text-light: #9080B0;
+  --text-xlight: #C4B8D8;
+
+  --green: #00C896;
+  --green-pale: #E0FAF4;
+  --gold: #FFB800;
+  --gold-pale: #FFF8E1;
+  --red: #FF5252;
+  --red-pale: #FFEBEE;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── SCREENS ─── */
+.screen { display: none; min-height: 100vh; padding-bottom: 100px; }
+.screen.active { display: block; }
+
+/* ─── TOP BAR ─── */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: white;
+  padding: 14px 18px 12px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid rgba(124,77,255,0.08);
+  box-shadow: 0 2px 12px rgba(124,77,255,0.07);
+}
+.topbar .back-btn {
+  width: 36px; height: 36px;
+  border: none; border-radius: 50%;
+  background: var(--accent-pale);
+  color: var(--accent);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.topbar h2 {
+  font-family: 'Mitr', sans-serif;
+  font-size: 17px; font-weight: 600;
+  color: var(--text); flex: 1;
+}
+.topbar .sync-btn {
+  padding: 7px 14px;
+  border: none; border-radius: 20px;
+  background: var(--accent); color: white;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: opacity .2s;
+  display: flex; align-items: center; gap: 5px;
+}
+.topbar .sync-btn:active { opacity: 0.8; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #4DFFB4; }
+
+/* ─── HERO HEADER ─── */
+.hero {
+  background: linear-gradient(135deg, #7C4DFF 0%, #B04DFF 60%, #FF6BDC 100%);
+  padding: 28px 20px 50px;
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content:''; position:absolute; top:-60px; right:-60px;
+  width:220px; height:220px; border-radius:50%;
+  background:rgba(255,255,255,0.07);
+}
+.hero::after {
+  content:''; position:absolute; bottom:-40px; left:20px;
+  width:120px; height:120px; border-radius:50%;
+  background:rgba(255,255,255,0.05);
+}
+.hero h1 {
+  font-family: 'Mitr', sans-serif; font-size: 24px;
+  color: white; font-weight: 600; position: relative;
+}
+.hero p { font-size: 13px; color: rgba(255,255,255,.8); margin-top: 3px; position: relative; }
+
+/* ─── PULL-UP CARD ─── */
+.pullup {
+  margin-top: -24px;
+  padding: 0 16px;
+  position: relative; z-index: 2;
+}
+
+/* ─── CARDS ─── */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card + .card { margin-top: 14px; }
+
+.section-title {
+  font-family: 'Mitr', sans-serif;
+  font-size: 15px; font-weight: 600;
+  color: var(--text);
+  padding: 18px 16px 10px;
+}
+
+/* ─── MEMBER CARDS ─── */
+.member-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px 16px; }
+.member-card {
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: var(--shadow);
+}
+.member-card:active { transform: scale(0.97); }
+.member-card::before {
+  content:''; position:absolute; top:-30px; right:-30px;
+  width:100px; height:100px; border-radius:50%;
+  background:rgba(255,255,255,0.15);
+}
+.member-avatar {
+  width:48px; height:48px; border-radius:50%;
+  background:rgba(255,255,255,0.3);
+  display:flex; align-items:center; justify-content:center;
+  font-size:24px; margin-bottom:10px;
+}
+.member-name { font-family:'Mitr',sans-serif; font-size:16px; font-weight:600; color:white; }
+.member-days { font-size:11px; color:rgba(255,255,255,.8); margin-top:2px; }
+.member-earn { font-family:'Mitr',sans-serif; font-size:18px; font-weight:600; color:white; margin-top:8px; }
+.member-earn-label { font-size:10px; color:rgba(255,255,255,.75); }
+
+.member-card-add {
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  cursor: pointer;
+  background: white;
+  box-shadow: var(--shadow);
+  border: 2.5px dashed var(--accent2);
+  display: flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap: 6px; min-height: 130px;
+  transition: background .15s;
+}
+.member-card-add:active { background: var(--accent-pale); }
+.member-card-add .plus { font-size:28px; color: var(--accent2); }
+.member-card-add .label { font-size:13px; color: var(--accent); font-weight:600; }
+
+/* User gradient presets */
+.g0 { background: linear-gradient(135deg,#7C4DFF,#B04DFF); }
+.g1 { background: linear-gradient(135deg,#FF6B9D,#FF8B6B); }
+.g2 { background: linear-gradient(135deg,#00BCD4,#0097A7); }
+.g3 { background: linear-gradient(135deg,#FF9800,#F44336); }
+.g4 { background: linear-gradient(135deg,#4CAF50,#00BCD4); }
+.g5 { background: linear-gradient(135deg,#E91E63,#9C27B0); }
+.g6 { background: linear-gradient(135deg,#3F51B5,#00BCD4); }
+.g7 { background: linear-gradient(135deg,#795548,#FF9800); }
+
+/* ─── SUMMARY PILLS ─── */
+.summary-row { display:flex; gap:10px; padding:0 16px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.summary-row::-webkit-scrollbar { display:none; }
+.sum-pill {
+  background: white;
+  border-radius: 16px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+  flex-shrink: 0; min-width: 110px;
+}
+.sum-pill .lbl { font-size:10px; color:var(--text-light); font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+.sum-pill .val { font-family:'Mitr',sans-serif; font-size:20px; font-weight:600; margin-top:2px; }
+.sum-pill .unit { font-size:10px; color:var(--text-light); }
+
+/* ─── MONTH LIST ─── */
+.month-item {
+  padding: 16px 18px;
+  display:flex; align-items:center; gap:14px;
+  border-bottom: 1px solid rgba(124,77,255,.06);
+  cursor: pointer;
+  transition: background .12s;
+}
+.month-item:last-child { border-bottom: none; }
+.month-item:active { background: var(--accent-pale); }
+.month-icon {
+  width:46px; height:46px; border-radius:14px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; flex-shrink:0;
+}
+.month-info { flex:1; }
+.month-name { font-family:'Mitr',sans-serif; font-size:15px; font-weight:600; }
+.month-sub { font-size:11px; color:var(--text-light); margin-top:2px; }
+.month-earn { font-family:'Mitr',sans-serif; font-size:17px; font-weight:600; }
+.month-chevron { color:var(--text-xlight); font-size:16px; }
+
+/* ─── DAY LIST ─── */
+.day-item {
+  padding: 14px 18px;
+  display:flex; align-items:center; gap:12px;
+  border-bottom: 1px solid rgba(124,77,255,.06);
+}
+.day-item:last-child { border-bottom: none; }
+.day-badge {
+  width:44px; height:44px; border-radius:12px;
+  background: var(--accent-pale);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.day-badge .d { font-family:'Mitr',sans-serif; font-size:18px; font-weight:600; color:var(--accent); line-height:1; }
+.day-badge .m { font-size:9px; color:var(--text-light); }
+.day-info { flex:1; }
+.day-stats-row { display:flex; gap:10px; font-size:11px; color:var(--text-light); }
+.day-earn { font-family:'Mitr',sans-serif; font-size:15px; font-weight:600; color:var(--green); }
+.day-earn-detail { font-size:10px; color:var(--text-xlight); margin-top:1px; }
+.day-actions { display:flex; gap:6px; }
+.icon-btn {
+  width:32px; height:32px; border-radius:50%;
+  border:none; cursor:pointer; font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .12s;
+}
+.icon-btn:active { transform:scale(.88); }
+.btn-edit { background:#EEF2FF; color:#4A7CFF; }
+.btn-del { background:#FFEBEE; color:#FF5252; }
+
+/* ─── BAR CHART ─── */
+.chart-area { padding:16px 16px 8px; overflow-x:auto; }
+.chart-bars {
+  display:flex; gap:6px; align-items:flex-end;
+  height:110px; padding-bottom:4px; min-width:max-content;
+}
+.bar-col { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.bar {
+  width:22px; border-radius:6px 6px 0 0;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+  min-height:4px; transition:height .5s cubic-bezier(.4,0,.2,1);
+}
+.bar-lbl { font-size:9px; color:var(--text-light); }
+
+/* ─── FORM ─── */
+.form-wrap { padding:16px; }
+.form-group { margin-bottom:14px; }
+.form-lbl { font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px; display:block; }
+.form-input {
+  width:100%; padding:13px 16px;
+  border:2px solid rgba(124,77,255,.15);
+  border-radius: var(--radius-sm);
+  font-family:'Sarabun',sans-serif; font-size:16px;
+  color:var(--text); background:#FAF8FF;
+  outline:none; transition:border-color .2s, background .2s;
+  -webkit-appearance:none;
+}
+.form-input:focus { border-color:var(--accent); background:white; }
+.preview-earn {
+  background: var(--gold-pale);
+  border-radius: var(--radius-sm);
+  padding:14px 16px;
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:14px;
+}
+.preview-earn .pe-lbl { font-size:12px; color:#9E7A00; }
+.preview-earn .pe-sub { font-size:10px; color:#BFA030; margin-top:2px; }
+.preview-earn .pe-val { font-family:'Mitr',sans-serif; font-size:24px; font-weight:600; color:var(--gold); }
+.btn-primary {
+  width:100%; padding:15px;
+  background:linear-gradient(135deg,#7C4DFF,#B04DFF);
+  color:white; border:none; border-radius:var(--radius-sm);
+  font-family:'Mitr',sans-serif; font-size:16px; font-weight:600;
+  cursor:pointer; letter-spacing:.4px;
+  box-shadow:0 6px 20px rgba(124,77,255,.35);
+  transition:opacity .2s, transform .15s;
+}
+.btn-primary:active { opacity:.88; transform:scale(.98); }
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  display:none; position:fixed; inset:0; z-index:200;
+  background:rgba(45,27,94,.5); backdrop-filter:blur(4px);
+  align-items:flex-end; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:white; width:100%; max-width:520px;
+  border-radius:28px 28px 0 0;
+  padding:24px 20px 40px;
+  animation:slideUp .25s cubic-bezier(.4,0,.2,1);
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.modal h3 { font-family:'Mitr',sans-serif; font-size:18px; margin-bottom:18px; }
+.modal-actions { display:flex; gap:10px; margin-top:16px; }
+.btn-ghost {
+  flex:1; padding:13px;
+  border:2px solid rgba(124,77,255,.2);
+  border-radius:var(--radius-sm);
+  background:white; color:var(--accent);
+  font-family:'Mitr',sans-serif; font-size:14px;
+  cursor:pointer;
+}
+
+/* ─── SETTINGS ICON ─── */
+.sheet-url-badge {
+  display:flex; align-items:center; gap:8px;
+  background:var(--accent-pale); border-radius:12px;
+  padding:10px 14px; margin:0 16px 14px; cursor:pointer;
+}
+.sheet-url-badge .icon { font-size:18px; }
+.sheet-url-badge .txt { font-size:11px; color:var(--accent); font-weight:600; }
+.sheet-url-badge .sub { font-size:10px; color:var(--text-light); }
+
+/* ─── BOTTOM NAV ─── */
+.bottom-nav {
+  position:fixed; bottom:0; left:0; right:0;
+  background:white; display:flex;
+  border-top:1px solid rgba(124,77,255,.08);
+  box-shadow:0 -4px 20px rgba(124,77,255,.08); z-index:100;
+}
+.nav-item {
+  flex:1; padding:10px 0 14px;
+  border:none; background:none; cursor:pointer;
+  font-family:'Sarabun',sans-serif; font-size:10px;
+  color:var(--text-light);
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  transition:color .15s;
+}
+.nav-item.active { color:var(--accent); }
+.nav-item .ni { font-size:22px; }
+
+/* ─── TOAST ─── */
+.toast {
+  position:fixed; bottom:90px; left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:var(--text); color:white;
+  padding:10px 22px; border-radius:30px;
+  font-size:13px; font-weight:600;
+  opacity:0; transition:all .28s; z-index:300;
+  pointer-events:none; white-space:nowrap;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.toast.success { background:var(--green); }
+.toast.error { background:var(--red); }
+.toast.info { background:var(--accent); }
+
+/* ─── SYNC STATUS ─── */
+.sync-row {
+  display:flex; align-items:center; gap:8px;
+  padding:10px 18px;
+  background:var(--green-pale); border-radius:12px;
+  margin:0 16px 14px;
+  font-size:12px; color:#007A5A; font-weight:600;
+}
+.sync-row.error { background:var(--red-pale); color:var(--red); }
+.sync-row.pending { background:var(--gold-pale); color:#9E7A00; }
+
+/* ─── SPINNER ─── */
+@keyframes spin { to { transform:rotate(360deg); } }
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4); border-top-color:white; border-radius:50%; animation:spin .6s linear infinite; }
+
+/* ─── MISC ─── */
+.empty-state { text-align:center; padding:40px 20px; color:var(--text-light); }
+.empty-state .ei { font-size:48px; margin-bottom:12px; }
+.tag { display:inline-block; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:600; }
+.tag-steps { background:rgba(124,77,255,.12); color:var(--accent); }
+.tag-activity { background:rgba(0,200,150,.12); color:var(--green); }
+
+.color-pickers { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px; }
+.cp { width:100%; aspect-ratio:1; border-radius:12px; border:3px solid transparent; cursor:pointer; transition:border-color .15s; }
+.cp.selected { border-color:var(--text); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ SCREEN: HOME (Members) ══════════════════ -->
+<div class="screen active" id="scr-home">
+  <div class="hero">
+    <h1>🏃 Family Fit</h1>
+    <p id="heroSub">กดเลือกสมาชิกเพื่อดูข้อมูล</p>
+  </div>
+
+  <div class="pullup">
+    <!-- Sheet URL badge -->
+    <div class="sheet-url-badge" onclick="openSheetModal()" style="margin:0 0 14px;">
+      <span class="icon">📊</span>
+      <div>
+        <div class="txt">Google Sheets</div>
+        <div class="sub" id="sheetUrlLabel">แตะเพื่อตั้งค่า URL</div>
+      </div>
+      <span style="margin-left:auto;color:var(--text-light);font-size:14px;">⚙️</span>
+    </div>
+
+    <div id="syncStatusHome"></div>
+
+    <!-- Members -->
+    <div class="section-title" style="padding-top:0;">👨‍👩‍👧‍👦 สมาชิก</div>
+    <div class="member-grid" id="memberGrid"></div>
+
+    <!-- Global totals -->
+    <div class="section-title">📈 รวมทั้งครอบครัว</div>
+    <div class="summary-row" id="familySummary"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ SCREEN: MEMBER DASHBOARD ══════════════════ -->
+<div class="screen" id="scr-member">
+  <div class="topbar">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <h2 id="memberTitle">แม่</h2>
+    <button class="topbar sync-btn" onclick="syncNow()">
+      <span class="sync-dot"></span> Sync
+    </button>
+  </div>
+
+  <!-- Summary pills -->
+  <div class="summary-row" style="padding-top:14px;" id="memberSummary"></div>
+
+  <!-- Chart -->
+  <div class="section-title" style="padding-top:4px;">📊 รางวัลรายเดือน</div>
+  <div class="card" style="margin:0 16px 14px;">
+    <div class="chart-area" id="memberChart"></div>
+  </div>
+
+  <!-- Month list -->
+  <div class="section-title">🗓 แยกตามเดือน</div>
+  <div class="card" style="margin:0 16px;" id="monthList"></div>
+
+  <!-- Add entry -->
+  <div class="section-title">➕ บันทึกวันใหม่</div>
+  <div class="card" style="margin:0 16px 14px;">
+    <div class="form-wrap" id="addForm">
+      <input type="hidden" id="editEntryId">
+      <div class="form-group">
+        <label class="form-lbl">📅 วันที่</label>
+        <input type="date" class="form-input" id="inputDate">
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">👟 จำนวนก้าว (เดิน)</label>
+        <input type="number" class="form-input" id="inputSteps" placeholder="เช่น 10000" oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label class="form-lbl">🏃 กิจกรรมทั่วไป</label>
+        <input type="number" class="form-input" id="inputActivity" placeholder="เช่น 5000" oninput="updatePreview()">
+      </div>
+      <div class="preview-earn">
+        <div>
+          <div class="pe-lbl">💰 รางวัลที่จะได้</div>
+          <div class="pe-sub" id="previewDetail">-</div>
+        </div>
+        <div class="pe-val" id="previewAmount">0 ฿</div>
+      </div>
+      <button class="btn-primary" onclick="saveEntry()">✅ บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ SCREEN: MONTH DETAIL ══════════════════ -->
+<div class="screen" id="scr-month">
+  <div class="topbar">
+    <button class="back-btn" onclick="goMember()">←</button>
+    <h2 id="monthDetailTitle">มีนาคม 2568</h2>
+  </div>
+  <div class="summary-row" style="padding-top:14px;" id="monthSummary"></div>
+  <div class="section-title" style="padding-top:4px;">📊 ก้าว + กิจกรรม รายวัน</div>
+  <div class="card" style="margin:0 16px 14px;">
+    <div class="chart-area" id="monthChart"></div>
+  </div>
+  <div class="section-title">📋 รายละเอียดรายวัน</div>
+  <div class="card" style="margin:0 16px;" id="dayList"></div>
+</div>
+
+<!-- ══════════════════ SCREEN: SETTINGS ══════════════════ -->
+<div class="screen" id="scr-settings">
+  <div class="hero" style="padding-bottom:40px;">
+    <h1>⚙️ ตั้งค่า</h1>
+    <p>จัดการสมาชิกและ Google Sheets</p>
+  </div>
+  <div class="pullup">
+    <div class="section-title" style="padding-top:0;">📊 Google Sheets</div>
+    <div class="card" style="margin:0 16px 14px;">
+      <div class="form-wrap">
+        <div class="form-group">
+          <label class="form-lbl">Apps Script Web App URL</label>
+          <input type="url" class="form-input" id="settingsSheetUrl" placeholder="https://script.google.com/...">
+        </div>
+        <button class="btn-primary" onclick="saveSheetUrl()">💾 บันทึก URL</button>
+      </div>
+    </div>
+    <div class="section-title">👤 จัดการสมาชิก</div>
+    <div class="card" style="margin:0 16px 14px;" id="memberSettings"></div>
+    <div style="padding:0 16px 16px;">
+      <button class="btn-primary" onclick="openAddMemberModal()">➕ เพิ่มสมาชิก</button>
+    </div>
+    <div class="section-title">📥 ข้อมูล</div>
+    <div class="card" style="margin:0 16px;">
+      <div class="form-wrap">
+        <button class="btn-primary" style="background:linear-gradient(135deg,#00C896,#00A0A0); box-shadow:0 6px 20px rgba(0,200,150,.3); margin-bottom:10px;" onclick="syncFromSheet()">📥 ดึงข้อมูลจาก Sheet</button>
+        <button class="btn-primary" style="background:linear-gradient(135deg,#FF6B9D,#FF8B6B); box-shadow:0 6px 20px rgba(255,107,157,.3);" onclick="pushAllToSheet()">📤 ส่งข้อมูลทั้งหมดไป Sheet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ BOTTOM NAV ══════════════════ -->
+<div class="bottom-nav" id="bottomNav">
+  <button class="nav-item active" onclick="showMainTab('home')" id="navHome">
+    <span class="ni">🏠</span>หน้าหลัก
+  </button>
+  <button class="nav-item" onclick="showMainTab('settings')" id="navSettings">
+    <span class="ni">⚙️</span>ตั้งค่า
+  </button>
+</div>
+
+<!-- ══════════════════ MODAL: Add Member ══════════════════ -->
+<div class="modal-overlay" id="modalMember">
+  <div class="modal">
+    <h3 id="modalMemberTitle">➕ เพิ่มสมาชิก</h3>
+    <input type="hidden" id="editMemberId">
+    <div class="form-group">
+      <label class="form-lbl">ชื่อ</label>
+      <input type="text" class="form-input" id="memberNameInput" placeholder="เช่น แม่, พ่อ, น้อง">
+    </div>
+    <div class="form-group">
+      <label class="form-lbl">ไอคอน</label>
+      <input type="text" class="form-input" id="memberEmojiInput" placeholder="Emoji เช่น 👩 👨 👧">
+    </div>
+    <div class="form-group">
+      <label class="form-lbl">สี</label>
+      <div class="color-pickers" id="colorPickers"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modalMember')">ยกเลิก</button>
+      <button class="btn-primary" onclick="saveMember()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ MODAL: Sheet URL ══════════════════ -->
+<div class="modal-overlay" id="modalSheet">
+  <div class="modal">
+    <h3>📊 ตั้งค่า Google Sheets</h3>
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:16px;">วาง URL ของ Google Apps Script Web App</p>
+    <div class="form-group">
+      <input type="url" class="form-input" id="modalSheetUrl" placeholder="https://script.google.com/macros/s/...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modalSheet')">ยกเลิก</button>
+      <button class="btn-primary" onclick="saveSheetUrlFromModal()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════════════
+const STEPS_RATE = 0.005;
+const ACTIVITY_RATE = 0.002;
+const GRADIENTS = ['g0','g1','g2','g3','g4','g5','g6','g7'];
+const GRADIENT_COLORS = ['#7C4DFF','#FF6B9D','#00BCD4','#FF9800','#4CAF50','#E91E63','#3F51B5','#795548'];
+
+const MARCH_DATA = [
+  {date:'2026-03-01',steps:8649,activity:7400},{date:'2026-03-02',steps:10592,activity:5000},
+  {date:'2026-03-03',steps:4812,activity:5200},{date:'2026-03-04',steps:9688,activity:8100},
+  {date:'2026-03-05',steps:9138,activity:8700},{date:'2026-03-06',steps:9077,activity:8100},
+  {date:'2026-03-07',steps:10651,activity:6000},{date:'2026-03-08',steps:10477,activity:7200},
+  {date:'2026-03-09',steps:12752,activity:7000},{date:'2026-03-10',steps:15423,activity:6000},
+  {date:'2026-03-11',steps:12542,activity:5000},{date:'2026-03-12',steps:11305,activity:5000},
+  {date:'2026-03-13',steps:10305,activity:5400},{date:'2026-03-14',steps:13036,activity:6000},
+  {date:'2026-03-15',steps:11843,activity:5800},{date:'2026-03-16',steps:11253,activity:5500},
+  {date:'2026-03-17',steps:11275,activity:5300},{date:'2026-03-18',steps:8620,activity:4900},
+  {date:'2026-03-19',steps:11226,activity:5500},{date:'2026-03-20',steps:6830,activity:3000},
+  {date:'2026-03-21',steps:9953,activity:5200},{date:'2026-03-22',steps:8231,activity:4500},
+  {date:'2026-03-23',steps:10382,activity:6000},{date:'2026-03-24',steps:10080,activity:5000},
+  {date:'2026-03-25',steps:6055,activity:3000},{date:'2026-03-26',steps:7452,activity:3200},
+  {date:'2026-03-27',steps:7024,activity:3100},{date:'2026-03-28',steps:6017,activity:3000},
+];
+
+const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const TH_MONTHS_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let state = {
+  members: [],       // [{id, name, emoji, gradient, entries:[{id,date,steps,activity}]}]
+  sheetUrl: 'https://script.google.com/macros/s/AKfycbz6iyl-EfeY3h_6uOv5sYFEPhm9GMqg0IUjr7H3k3bhUQDTTVwEwg_a-vLauw_uESnosA/exec',
+  activeMemberId: null,
+  activeMonthKey: null, // 'YYYY-MM'
+  selectedGradient: 0,
+};
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+function init() {
+  const saved = localStorage.getItem('familyFit_v2');
+  if (saved) {
+    state = { ...state, ...JSON.parse(saved) };
+  } else {
+    // Seed with "แม่" + March data
+    state.members = [{
+      id: 'm1', name: 'แม่', emoji: '👩', gradient: 1,
+      entries: MARCH_DATA.map((d, i) => ({ id: `e${i}`, ...d }))
+    }];
+    persist();
+  }
+  buildColorPickers();
+  renderHome();
+  updateSheetLabel();
+  setDefaultDate();
+}
+
+function persist() {
+  localStorage.setItem('familyFit_v2', JSON.stringify(state));
+}
+
+// ══════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const showNav = id === 'scr-home' || id === 'scr-settings';
+  document.getElementById('bottomNav').style.display = showNav ? 'flex' : 'none';
+}
+
+function showMainTab(tab) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  if (tab === 'home') {
+    document.getElementById('navHome').classList.add('active');
+    showScreen('scr-home');
+    renderHome();
+  } else {
+    document.getElementById('navSettings').classList.add('active');
+    showScreen('scr-settings');
+    renderSettings();
+  }
+}
+
+function goHome() { showMainTab('home'); }
+function goMember() { showScreen('scr-member'); renderMemberScreen(); }
+
+// ══════════════════════════════════════════════
+//  CALCULATIONS
+// ══════════════════════════════════════════════
+const calcEarn = (steps, activity) => steps * STEPS_RATE + activity * ACTIVITY_RATE;
+const fmt = n => typeof n === 'number' ? n.toLocaleString('th-TH', {minimumFractionDigits:0, maximumFractionDigits:2}) : n;
+const fmtDate = ds => { const d = new Date(ds+'T00:00:00'); return {day:d.getDate(), month:TH_MONTHS[d.getMonth()], monthFull:TH_MONTHS_FULL[d.getMonth()], year:d.getFullYear()+543}; };
+const monthKey = ds => ds.slice(0,7);
+const monthLabel = mk => { const [y,m] = mk.split('-'); return `${TH_MONTHS_FULL[+m-1]} ${+y+543}`; };
+
+function groupByMonth(entries) {
+  const map = {};
+  entries.forEach(e => {
+    const mk = monthKey(e.date);
+    if (!map[mk]) map[mk] = [];
+    map[mk].push(e);
+  });
+  return map;
+}
+
+function memberTotals(member) {
+  const totalSteps = member.entries.reduce((s,e)=>s+e.steps,0);
+  const totalActivity = member.entries.reduce((s,e)=>s+e.activity,0);
+  const totalEarn = member.entries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0);
+  return { totalSteps, totalActivity, totalEarn, days: member.entries.length };
+}
+
+// ══════════════════════════════════════════════
+//  HOME SCREEN
+// ══════════════════════════════════════════════
+function renderHome() {
+  const grid = document.getElementById('memberGrid');
+  grid.innerHTML = '';
+  state.members.forEach(m => {
+    const t = memberTotals(m);
+    const div = document.createElement('div');
+    div.className = `member-card g${m.gradient}`;
+    div.innerHTML = `
+      <div class="member-avatar">${m.emoji}</div>
+      <div class="member-name">${m.name}</div>
+      <div class="member-days">${t.days} วัน</div>
+      <div class="member-earn-label">รางวัลสะสม</div>
+      <div class="member-earn">${fmt(Math.round(t.totalEarn*100)/100)} ฿</div>`;
+    div.onclick = () => openMember(m.id);
+    grid.appendChild(div);
+  });
+  // Add button
+  const addCard = document.createElement('div');
+  addCard.className = 'member-card-add';
+  addCard.innerHTML = `<div class="plus">+</div><div class="label">เพิ่มสมาชิก</div>`;
+  addCard.onclick = () => { showMainTab('settings'); setTimeout(openAddMemberModal, 100); };
+  grid.appendChild(addCard);
+
+  // Family summary
+  const fs = document.getElementById('familySummary');
+  const allEntries = state.members.flatMap(m => m.entries);
+  const fSteps = allEntries.reduce((s,e)=>s+e.steps,0);
+  const fActivity = allEntries.reduce((s,e)=>s+e.activity,0);
+  const fEarn = allEntries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0);
+  fs.innerHTML = `
+    <div class="sum-pill"><div class="lbl">👟 ก้าวรวม</div><div class="val" style="color:var(--accent)">${fmt(fSteps)}</div><div class="unit">ก้าว</div></div>
+    <div class="sum-pill"><div class="lbl">🏃 กิจกรรม</div><div class="val" style="color:var(--green)">${fmt(fActivity)}</div><div class="unit">ครั้ง</div></div>
+    <div class="sum-pill"><div class="lbl">💰 รางวัลรวม</div><div class="val" style="color:var(--gold)">${fmt(Math.round(fEarn))}</div><div class="unit">บาท</div></div>
+    <div class="sum-pill"><div class="lbl">👥 สมาชิก</div><div class="val" style="color:#FF6B9D">${state.members.length}</div><div class="unit">คน</div></div>`;
+}
+
+// ══════════════════════════════════════════════
+//  MEMBER SCREEN
+// ══════════════════════════════════════════════
+function openMember(memberId) {
+  state.activeMemberId = memberId;
+  showScreen('scr-member');
+  renderMemberScreen();
+}
+
+function renderMemberScreen() {
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  if (!m) return;
+
+  // Apply accent color
+  const color = GRADIENT_COLORS[m.gradient];
+  document.documentElement.style.setProperty('--accent', color);
+  document.documentElement.style.setProperty('--accent-pale', color + '18');
+  document.getElementById('memberTitle').textContent = `${m.emoji} ${m.name}`;
+
+  // Summary pills
+  const t = memberTotals(m);
+  document.getElementById('memberSummary').innerHTML = `
+    <div class="sum-pill"><div class="lbl">👟 ก้าวรวม</div><div class="val" style="color:var(--accent)">${fmt(t.totalSteps)}</div><div class="unit">ก้าว</div></div>
+    <div class="sum-pill"><div class="lbl">🏃 กิจกรรม</div><div class="val" style="color:var(--green)">${fmt(t.totalActivity)}</div><div class="unit">ครั้ง</div></div>
+    <div class="sum-pill"><div class="lbl">💰 รางวัล</div><div class="val" style="color:var(--gold)">${fmt(Math.round(t.totalEarn))}</div><div class="unit">บาท</div></div>
+    <div class="sum-pill"><div class="lbl">📅 วัน</div><div class="val" style="color:#FF6B9D">${t.days}</div><div class="unit">วัน</div></div>`;
+
+  renderMemberChart(m);
+  renderMonthList(m);
+  setDefaultDate();
+}
+
+function renderMemberChart(m) {
+  const grouped = groupByMonth(m.entries);
+  const keys = Object.keys(grouped).sort();
+  const earns = keys.map(k => grouped[k].reduce((s,e)=>s+calcEarn(e.steps,e.activity),0));
+  const maxE = Math.max(...earns, 1);
+  const container = document.getElementById('memberChart');
+  container.innerHTML = `<div class="chart-bars">${keys.map((k,i)=>{
+    const h = Math.max(4, (earns[i]/maxE)*90);
+    const [y,mo] = k.split('-');
+    return `<div class="bar-col"><div class="bar" style="height:${h}px"></div><div class="bar-lbl">${TH_MONTHS[+mo-1]}</div></div>`;
+  }).join('')}</div>`;
+}
+
+function renderMonthList(m) {
+  const grouped = groupByMonth(m.entries);
+  const keys = Object.keys(grouped).sort().reverse();
+  const container = document.getElementById('monthList');
+  if (keys.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="ei">📅</div>ยังไม่มีข้อมูล</div>`;
+    return;
+  }
+  container.innerHTML = keys.map(k => {
+    const entries = grouped[k];
+    const earn = entries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0);
+    const steps = entries.reduce((s,e)=>s+e.steps,0);
+    const act = entries.reduce((s,e)=>s+e.activity,0);
+    const [y,mo] = k.split('-');
+    return `<div class="month-item" onclick="openMonth('${k}')">
+      <div class="month-icon g${m.gradient}" style="border-radius:14px;color:white;font-size:18px;">${TH_MONTHS[+mo-1]}</div>
+      <div class="month-info">
+        <div class="month-name">${TH_MONTHS_FULL[+mo-1]} ${+y+543}</div>
+        <div class="month-sub">👟 ${fmt(steps)} ก้าว &nbsp;🏃 ${fmt(act)} &nbsp;📅 ${entries.length} วัน</div>
+      </div>
+      <div style="text-align:right">
+        <div class="month-earn" style="color:var(--gold)">${fmt(Math.round(earn*100)/100)} ฿</div>
+        <div class="month-chevron">›</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  MONTH DETAIL
+// ══════════════════════════════════════════════
+function openMonth(monthKey) {
+  state.activeMonthKey = monthKey;
+  showScreen('scr-month');
+  renderMonthDetail();
+}
+
+function renderMonthDetail() {
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  if (!m) return;
+  const mk = state.activeMonthKey;
+  const [y, mo] = mk.split('-');
+  document.getElementById('monthDetailTitle').textContent = `${TH_MONTHS_FULL[+mo-1]} ${+y+543}`;
+
+  const entries = m.entries.filter(e => monthKey(e.date) === mk).sort((a,b) => a.date.localeCompare(b.date));
+
+  const totalSteps = entries.reduce((s,e)=>s+e.steps,0);
+  const totalActivity = entries.reduce((s,e)=>s+e.activity,0);
+  const totalEarn = entries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0);
+
+  document.getElementById('monthSummary').innerHTML = `
+    <div class="sum-pill"><div class="lbl">👟 ก้าวรวม</div><div class="val" style="color:var(--accent)">${fmt(totalSteps)}</div><div class="unit">ก้าว</div></div>
+    <div class="sum-pill"><div class="lbl">🏃 กิจกรรม</div><div class="val" style="color:var(--green)">${fmt(totalActivity)}</div><div class="unit">ครั้ง</div></div>
+    <div class="sum-pill"><div class="lbl">💰 รางวัล</div><div class="val" style="color:var(--gold)">${fmt(Math.round(totalEarn*100)/100)}</div><div class="unit">บาท</div></div>
+    <div class="sum-pill"><div class="lbl">📅 วัน</div><div class="val" style="color:#FF6B9D">${entries.length}</div><div class="unit">วัน</div></div>`;
+
+  // Bar chart (steps per day)
+  const maxSteps = Math.max(...entries.map(e=>e.steps), 1);
+  const mc = document.getElementById('monthChart');
+  mc.innerHTML = `<div class="chart-bars">${entries.map(e=>{
+    const h = Math.max(4, (e.steps/maxSteps)*90);
+    const fd = fmtDate(e.date);
+    return `<div class="bar-col"><div class="bar" style="height:${h}px" title="${fd.day} ${fd.month}"></div><div class="bar-lbl">${fd.day}</div></div>`;
+  }).join('')}</div>`;
+
+  // Day list
+  const dl = document.getElementById('dayList');
+  if (entries.length === 0) {
+    dl.innerHTML = `<div class="empty-state"><div class="ei">📅</div>ไม่มีข้อมูลเดือนนี้</div>`;
+    return;
+  }
+  dl.innerHTML = entries.map(e => {
+    const earn = calcEarn(e.steps, e.activity);
+    const fd = fmtDate(e.date);
+    return `<div class="day-item">
+      <div class="day-badge"><div class="d">${fd.day}</div><div class="m">${fd.month}</div></div>
+      <div class="day-info">
+        <div class="day-stats-row"><span>👟 ${fmt(e.steps)} ก้าว</span><span>🏃 ${fmt(e.activity)}</span></div>
+        <div class="day-earn">+ ${earn.toFixed(2)} ฿</div>
+        <div class="day-earn-detail">เดิน ${(e.steps*STEPS_RATE).toFixed(2)} + กิจกรรม ${(e.activity*ACTIVITY_RATE).toFixed(2)}</div>
+      </div>
+      <div class="day-actions">
+        <button class="icon-btn btn-edit" onclick="editEntry('${e.id}')">✏️</button>
+        <button class="icon-btn btn-del" onclick="deleteEntry('${e.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  ENTRY CRUD
+// ══════════════════════════════════════════════
+function updatePreview() {
+  const steps = parseInt(document.getElementById('inputSteps').value) || 0;
+  const activity = parseInt(document.getElementById('inputActivity').value) || 0;
+  const earn = calcEarn(steps, activity);
+  document.getElementById('previewAmount').textContent = earn.toFixed(2) + ' ฿';
+  document.getElementById('previewDetail').textContent =
+    `เดิน ${(steps*STEPS_RATE).toFixed(2)} + กิจกรรม ${(activity*ACTIVITY_RATE).toFixed(2)}`;
+}
+
+function setDefaultDate() {
+  const today = new Date();
+  document.getElementById('inputDate').value =
+    `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+}
+
+function saveEntry() {
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  if (!m) return;
+  const dateVal = document.getElementById('inputDate').value;
+  const steps = parseInt(document.getElementById('inputSteps').value) || 0;
+  const activity = parseInt(document.getElementById('inputActivity').value) || 0;
+  const editId = document.getElementById('editEntryId').value;
+
+  if (!dateVal) { showToast('⚠️ กรุณาเลือกวันที่', 'error'); return; }
+  if (steps === 0 && activity === 0) { showToast('⚠️ กรุณากรอกข้อมูล', 'error'); return; }
+
+  if (editId) {
+    const idx = m.entries.findIndex(e => e.id === editId);
+    if (idx >= 0) { m.entries[idx] = { id: editId, date: dateVal, steps, activity }; }
+    document.getElementById('editEntryId').value = '';
+    showToast('✅ แก้ไขแล้ว', 'success');
+  } else {
+    if (m.entries.find(e => e.date === dateVal)) { showToast('⚠️ วันที่นี้มีข้อมูลแล้ว', 'error'); return; }
+    m.entries.push({ id: 'e' + Date.now(), date: dateVal, steps, activity });
+    showToast('✅ บันทึกแล้ว', 'success');
+  }
+
+  persist();
+  document.getElementById('inputSteps').value = '';
+  document.getElementById('inputActivity').value = '';
+  updatePreview();
+  setDefaultDate();
+  renderMemberScreen();
+  syncEntryToSheet(m, m.entries[m.entries.length - 1]);
+}
+
+function editEntry(entryId) {
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  const entry = m?.entries.find(e => e.id === entryId);
+  if (!entry) return;
+
+  document.getElementById('editEntryId').value = entryId;
+  document.getElementById('inputDate').value = entry.date;
+  document.getElementById('inputSteps').value = entry.steps;
+  document.getElementById('inputActivity').value = entry.activity;
+  updatePreview();
+
+  // Go back to member screen, scroll form into view
+  showScreen('scr-member');
+  setTimeout(() => document.getElementById('addForm').scrollIntoView({ behavior: 'smooth' }), 100);
+}
+
+function deleteEntry(entryId) {
+  if (!confirm('ลบข้อมูลวันนี้?')) return;
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  m.entries = m.entries.filter(e => e.id !== entryId);
+  persist();
+  renderMonthDetail();
+  renderMemberScreen();
+  showToast('🗑️ ลบแล้ว');
+}
+
+// ══════════════════════════════════════════════
+//  MEMBER CRUD
+// ══════════════════════════════════════════════
+let selectedGrad = 1;
+
+function buildColorPickers() {
+  const cp = document.getElementById('colorPickers');
+  cp.innerHTML = GRADIENTS.map((g,i) => `
+    <div class="cp ${g} ${i===selectedGrad?'selected':''}" onclick="selectGrad(${i})" id="cp${i}"></div>`).join('');
+}
+
+function selectGrad(i) {
+  selectedGrad = i;
+  document.querySelectorAll('.cp').forEach((c,j) => c.classList.toggle('selected', j===i));
+}
+
+function openAddMemberModal() {
+  document.getElementById('editMemberId').value = '';
+  document.getElementById('memberNameInput').value = '';
+  document.getElementById('memberEmojiInput').value = '';
+  document.getElementById('modalMemberTitle').textContent = '➕ เพิ่มสมาชิก';
+  selectGrad(0);
+  document.getElementById('modalMember').classList.add('open');
+}
+
+function saveMember() {
+  const name = document.getElementById('memberNameInput').value.trim();
+  const emoji = document.getElementById('memberEmojiInput').value.trim() || '👤';
+  const editId = document.getElementById('editMemberId').value;
+  if (!name) { showToast('⚠️ กรุณากรอกชื่อ', 'error'); return; }
+
+  if (editId) {
+    const m = state.members.find(x => x.id === editId);
+    if (m) { m.name = name; m.emoji = emoji; m.gradient = selectedGrad; }
+  } else {
+    state.members.push({ id: 'm' + Date.now(), name, emoji, gradient: selectedGrad, entries: [] });
+  }
+  persist();
+  closeModal('modalMember');
+  renderHome();
+  renderSettings();
+  showToast('✅ บันทึกสมาชิกแล้ว', 'success');
+}
+
+function renderSettings() {
+  const ms = document.getElementById('memberSettings');
+  ms.innerHTML = state.members.map(m => `
+    <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(124,77,255,.06);">
+      <div class="cp g${m.gradient}" style="width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">${m.emoji}</div>
+      <div style="flex:1"><div style="font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;">${m.name}</div>
+      <div style="font-size:11px;color:var(--text-light);">${m.entries.length} รายการ</div></div>
+      <button class="icon-btn btn-edit" onclick="editMember('${m.id}')">✏️</button>
+      <button class="icon-btn btn-del" onclick="deleteMember('${m.id}')">🗑️</button>
+    </div>`).join('') || `<div class="empty-state" style="padding:24px;">ไม่มีสมาชิก</div>`;
+
+  document.getElementById('settingsSheetUrl').value = state.sheetUrl || '';
+}
+
+function editMember(id) {
+  const m = state.members.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('editMemberId').value = id;
+  document.getElementById('memberNameInput').value = m.name;
+  document.getElementById('memberEmojiInput').value = m.emoji;
+  document.getElementById('modalMemberTitle').textContent = '✏️ แก้ไขสมาชิก';
+  selectGrad(m.gradient);
+  document.getElementById('modalMember').classList.add('open');
+}
+
+function deleteMember(id) {
+  if (!confirm('ลบสมาชิกนี้? ข้อมูลทั้งหมดจะหายไป')) return;
+  state.members = state.members.filter(x => x.id !== id);
+  persist();
+  renderSettings();
+  renderHome();
+  showToast('🗑️ ลบแล้ว');
+}
+
+// ══════════════════════════════════════════════
+//  GOOGLE SHEETS SYNC
+// ══════════════════════════════════════════════
+function updateSheetLabel() {
+  const lbl = document.getElementById('sheetUrlLabel');
+  lbl.textContent = state.sheetUrl ? '✅ เชื่อมต่อแล้ว' : 'แตะเพื่อตั้งค่า URL';
+}
+
+function openSheetModal() {
+  document.getElementById('modalSheetUrl').value = state.sheetUrl || '';
+  document.getElementById('modalSheet').classList.add('open');
+}
+
+function saveSheetUrlFromModal() {
+  const url = document.getElementById('modalSheetUrl').value.trim();
+  state.sheetUrl = url;
+  persist();
+  closeModal('modalSheet');
+  updateSheetLabel();
+  showToast('✅ บันทึก URL แล้ว', 'success');
+}
+
+function saveSheetUrl() {
+  const url = document.getElementById('settingsSheetUrl').value.trim();
+  state.sheetUrl = url;
+  persist();
+  updateSheetLabel();
+  showToast('✅ บันทึก URL แล้ว', 'success');
+}
+
+async function sheetRequest(payload) {
+  if (!state.sheetUrl) { showToast('⚠️ ยังไม่ได้ตั้งค่า Sheet URL', 'error'); return null; }
+  try {
+    const res = await fetch(state.sheetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (e) {
+    showToast('❌ เชื่อมต่อ Sheet ไม่ได้', 'error');
+    return null;
+  }
+}
+
+async function syncEntryToSheet(member, entry) {
+  if (!state.sheetUrl) return;
+  await sheetRequest({
+    action: 'upsert',
+    member: member.name,
+    memberId: member.id,
+    entry
+  });
+}
+
+async function syncNow() {
+  showToast('🔄 กำลัง Sync...', 'info');
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  if (!m) return;
+  const result = await sheetRequest({
+    action: 'pushAll',
+    member: m.name,
+    memberId: m.id,
+    entries: m.entries
+  });
+  if (result) showToast('✅ Sync สำเร็จ', 'success');
+}
+
+async function pushAllToSheet() {
+  showToast('📤 กำลังส่งข้อมูล...', 'info');
+  const payload = state.members.map(m => ({ id: m.id, name: m.name, entries: m.entries }));
+  const result = await sheetRequest({ action: 'pushAll', allMembers: payload });
+  if (result) showToast('✅ ส่งข้อมูลสำเร็จ', 'success');
+}
+
+async function syncFromSheet() {
+  showToast('📥 กำลังดึงข้อมูล...', 'info');
+  const result = await sheetRequest({ action: 'getAll' });
+  if (!result) return;
+  if (result.members) {
+    // Merge — keep local members, overwrite entries from sheet
+    result.members.forEach(sm => {
+      const local = state.members.find(m => m.id === sm.id);
+      if (local) { local.entries = sm.entries; }
+      else { state.members.push(sm); }
+    });
+    persist();
+    renderHome();
+    showToast('✅ ดึงข้อมูลสำเร็จ', 'success');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════════
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+init();
+</script>
+</body>
+</html>
