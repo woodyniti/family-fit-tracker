@@ -473,7 +473,8 @@ body {
       </div>
       <div class="form-group">
         <label class="form-lbl">👟 จำนวนก้าว (เดิน)</label>
-        <input type="number" class="form-input" id="inputSteps" placeholder="เช่น 10000" oninput="updatePreview()">
+        <input type="number" class="form-input" id="inputSteps" placeholder="เช่น 10000" oninput="updatePreview(); updateKcalHint()">
+        <div id="kcalHint" style="font-size:13px;color:var(--text-light);margin-top:5px;padding-left:4px;min-height:18px;"></div>
       </div>
       <div class="form-group">
         <label class="form-lbl">🏃 กิจกรรมทั่วไป</label>
@@ -482,7 +483,8 @@ body {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-lbl">🔥 แคลอรี่ <span style="font-size:12px;color:var(--text-light);font-weight:400;">(ไม่บังคับ)</span></label>
-          <input type="number" class="form-input" id="inputKcal" placeholder="เช่น 350" step="0.1">
+          <input type="number" class="form-input" id="inputKcal" placeholder="เช่น 350" step="0.1" oninput="updateKcalToStepsHint()">
+          <div id="kcalToStepsHint" style="font-size:12px;color:var(--text-light);margin-top:5px;padding-left:2px;min-height:16px;"></div>
         </div>
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-lbl">📍 ระยะทาง <span style="font-size:12px;color:var(--text-light);font-weight:400;">(ไม่บังคับ)</span></label>
@@ -613,6 +615,10 @@ body {
     <div class="form-group">
       <label class="form-lbl">ไอคอน</label>
       <input type="text" class="form-input" id="memberEmojiInput" placeholder="Emoji เช่น 👩 👨 👧">
+    </div>
+    <div class="form-group">
+      <label class="form-lbl">⚖️ น้ำหนัก <span style="font-size:13px;color:var(--text-light);font-weight:400;">(กก. ใช้คำนวณ kcal)</span></label>
+      <input type="number" class="form-input" id="memberWeightInput" placeholder="เช่น 60" step="0.1">
     </div>
     <div class="form-group">
       <label class="form-lbl">สี</label>
@@ -1013,6 +1019,70 @@ function updatePreview() {
     `เดิน ${(steps*STEPS_RATE).toFixed(2)} + กิจกรรม ${(activity*ACTIVITY_RATE).toFixed(2)}`;
 }
 
+function updateKcalHint() {
+  const hint = document.getElementById('kcalHint');
+  if (!hint) return;
+  const steps = parseInt(document.getElementById('inputSteps').value) || 0;
+  if (steps === 0) { hint.textContent = ''; return; }
+
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  const weight = m?.weight || null;
+
+  let kcalEst, formula;
+  if (weight) {
+    kcalEst = steps * weight * 0.0005;
+    formula = `น้ำหนัก ${weight} กก.`;
+  } else {
+    kcalEst = steps * 0.04;
+    formula = 'ค่าเฉลี่ยทั่วไป';
+  }
+
+  // เปรียบเทียบกิจกรรม
+  const compare = getActivityCompare(kcalEst);
+  hint.innerHTML = `🔥 ≈ <b>${Math.round(kcalEst)} kcal</b> <span style="color:var(--text-xlight);">(${formula})</span> ${compare}`;
+}
+
+function updateKcalToStepsHint() {
+  const hint = document.getElementById('kcalToStepsHint');
+  if (!hint) return;
+  const kcal = parseFloat(document.getElementById('inputKcal').value) || 0;
+  if (kcal === 0) { hint.textContent = ''; return; }
+
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  const weight = m?.weight || null;
+
+  let stepsEst;
+  if (weight) {
+    stepsEst = Math.round(kcal / (weight * 0.0005));
+  } else {
+    stepsEst = Math.round(kcal / 0.04);
+  }
+
+  hint.innerHTML = `👟 ≈ <b>${stepsEst.toLocaleString('th-TH')} ก้าว</b> ${weight ? `<span style="color:var(--text-xlight);">(น้ำหนัก ${weight} กก.)</span>` : '<span style="color:var(--text-xlight);">(ค่าเฉลี่ย)</span>'}`;
+}
+
+function getActivityCompare(kcal) {
+  if (kcal <= 0) return '';
+  // เทียบกับกิจกรรมต่างๆ (kcal/ชั่วโมง คนน้ำหนัก ~60kg)
+  const activities = [
+    { name: 'ตีแบด', rate: 350 },
+    { name: 'ฟิตเนส', rate: 300 },
+    { name: 'กระโดดเชือก', rate: 500 },
+    { name: 'ว่ายน้ำ', rate: 400 },
+    { name: 'โยคะ', rate: 180 },
+    { name: 'ปั่นจักรยาน', rate: 400 },
+  ];
+  // หากิจกรรมที่ใกล้เคียง
+  const mins = activities.map(a => ({
+    name: a.name,
+    mins: Math.round((kcal / a.rate) * 60)
+  })).filter(a => a.mins >= 5 && a.mins <= 120);
+
+  if (mins.length === 0) return '';
+  const pick = mins[Math.floor(Math.random() * Math.min(2, mins.length))];
+  return `<span style="background:#EDE7FF;color:#7C4DFF;border-radius:20px;padding:1px 8px;font-size:12px;margin-left:4px;">≈ ตี${pick.name} ${pick.mins} นาที</span>`;
+}
+
 function setDefaultDate() {
   const today = new Date();
   document.getElementById('inputDate').value =
@@ -1076,6 +1146,8 @@ function editEntry(entryId) {
   document.getElementById('inputKcal').value = entry.kcal || '';
   document.getElementById('inputDist').value = entry.dist || '';
   updatePreview();
+  updateKcalHint();
+  updateKcalToStepsHint();
 
   // Go back to member screen, scroll form into view
   showScreen('scr-member');
@@ -1112,6 +1184,7 @@ function openAddMemberModal() {
   document.getElementById('editMemberId').value = '';
   document.getElementById('memberNameInput').value = '';
   document.getElementById('memberEmojiInput').value = '';
+  document.getElementById('memberWeightInput').value = '';
   document.getElementById('modalMemberTitle').textContent = '➕ เพิ่มสมาชิก';
   selectGrad(0);
   document.getElementById('modalMember').classList.add('open');
@@ -1125,9 +1198,11 @@ function saveMember() {
 
   if (editId) {
     const m = state.members.find(x => x.id === editId);
-    if (m) { m.name = name; m.emoji = emoji; m.gradient = selectedGrad; }
+    const weight = parseFloat(document.getElementById('memberWeightInput').value) || null;
+    if (m) { m.name = name; m.emoji = emoji; m.gradient = selectedGrad; m.weight = weight; }
   } else {
-    state.members.push({ id: 'm' + Date.now(), name, emoji, gradient: selectedGrad, entries: [] });
+    const weight2 = parseFloat(document.getElementById('memberWeightInput').value) || null;
+    state.members.push({ id: 'm' + Date.now(), name, emoji, gradient: selectedGrad, weight: weight2, entries: [] });
   }
   persist();
   closeModal('modalMember');
@@ -1142,7 +1217,7 @@ function renderSettings() {
     <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(124,77,255,.06);">
       <div class="cp g${m.gradient}" style="width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">${m.emoji}</div>
       <div style="flex:1"><div style="font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;">${m.name}</div>
-      <div style="font-size:11px;color:var(--text-light);">${m.entries.length} รายการ</div></div>
+      <div style="font-size:11px;color:var(--text-light);">${m.entries.length} รายการ${m.weight ? ` · ⚖️ ${m.weight} กก.` : ''}</div></div>
       <button class="icon-btn btn-edit" onclick="editMember('${m.id}')">✏️</button>
       <button class="icon-btn btn-del" onclick="deleteMember('${m.id}')">🗑️</button>
     </div>`).join('') || `<div class="empty-state" style="padding:24px;">ไม่มีสมาชิก</div>`;
@@ -1161,6 +1236,7 @@ function editMember(id) {
   document.getElementById('editMemberId').value = id;
   document.getElementById('memberNameInput').value = m.name;
   document.getElementById('memberEmojiInput').value = m.emoji;
+  document.getElementById('memberWeightInput').value = m.weight || '';
   document.getElementById('modalMemberTitle').textContent = '✏️ แก้ไขสมาชิก';
   selectGrad(m.gradient);
   document.getElementById('modalMember').classList.add('open');
