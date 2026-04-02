@@ -1030,7 +1030,10 @@ function saveEntry() {
   const editId = document.getElementById('editEntryId').value;
 
   if (!dateVal) { showToast('⚠️ กรุณาเลือกวันที่', 'error'); return; }
-  if (steps === 0 && activity === 0) { showToast('⚠️ กรุณากรอกข้อมูล', 'error'); return; }
+  // ต้องกรอกอย่างน้อย 1 ค่า (ก้าว / กิจกรรม / kcal / ระยะทาง)
+  if (steps === 0 && activity === 0 && !kcal && !dist) {
+    showToast('⚠️ กรุณากรอกข้อมูลอย่างน้อย 1 ช่อง', 'error'); return;
+  }
 
   if (editId) {
     const idx = m.entries.findIndex(e => e.id === editId);
