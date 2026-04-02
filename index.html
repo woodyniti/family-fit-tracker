@@ -247,6 +247,21 @@ body {
 .icon-btn:active { transform:scale(.88); }
 .btn-edit { background:#EEF2FF; color:#4A7CFF; }
 .btn-del { background:#FFEBEE; color:#FF5252; }
+.btn-paid {
+  width:38px; height:38px; border-radius:50%;
+  border: 2.5px solid #D0C8E8;
+  background: white; color: #C0B8D8;
+  font-size:18px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition: all .2s; flex-shrink:0;
+}
+.btn-paid.paid {
+  background: linear-gradient(135deg,#00C896,#00A878);
+  border-color: #00C896; color: white;
+  box-shadow: 0 3px 12px rgba(0,200,150,.35);
+}
+.day-item.paid-day { background: #F0FDF8; }
+.day-item.paid-day .day-earn { color: #00A878 !important; }
 
 /* ─── BAR CHART ─── */
 .chart-area { padding:16px 16px 8px; overflow-x:auto; }
@@ -965,14 +980,20 @@ function renderMonthDetail() {
   dl.innerHTML = entries.map(e => {
     const earn = calcEarn(e.steps, e.activity);
     const fd = fmtDate(e.date);
-    return `<div class="day-item">
+    const isPaid = e.paid ? 'paid-day' : '';
+    const paidBtn = e.paid ? 'paid' : '';
+    const paidIcon = e.paid ? '✅' : '○';
+    return `<div class="day-item ${isPaid}" id="dayitem-${e.id}">
       <div class="day-badge"><div class="d">${fd.day}</div><div class="m">${fd.month}</div></div>
       <div class="day-info">
         <div class="day-stats-row"><span>👟 ${fmt(e.steps)} ก้าว</span><span>🏃 ${fmt(e.activity)}</span>${e.dist ? `<span>📍 ${e.dist} กม.</span>` : ''}</div>
-        <div class="day-earn">+ ${earn.toFixed(2)} ฿ ${e.kcal ? `<span style="font-size:13px;color:var(--text-light);font-weight:600;margin-left:8px;">🔥 ${e.kcal} kcal</span>` : ''}</div>
+        <div class="day-earn">+ ${earn.toFixed(2)} ฿ ${e.kcal ? `<span style="font-size:13px;color:var(--text-light);font-weight:600;margin-left:8px;">🔥 ${e.kcal} kcal</span>` : ''}
+          ${e.paid ? `<span style="font-size:12px;background:#E0FAF4;color:#00A878;border-radius:20px;padding:2px 10px;margin-left:8px;font-weight:700;">จ่ายแล้ว</span>` : ''}
+        </div>
         <div class="day-earn-detail">เดิน ${(e.steps*STEPS_RATE).toFixed(2)} + กิจกรรม ${(e.activity*ACTIVITY_RATE).toFixed(2)}</div>
       </div>
       <div class="day-actions">
+        <button class="btn-paid ${paidBtn}" onclick="togglePaid('${e.id}')" title="ติ๊กรับรางวัล">${paidIcon}</button>
         <button class="icon-btn btn-edit" onclick="editEntry('${e.id}')">✏️</button>
         <button class="icon-btn btn-del" onclick="deleteEntry('${e.id}')">🗑️</button>
       </div>
@@ -1440,6 +1461,59 @@ function buildTgMessage(member, entry, earn) {
     lines.push(`🏆 รางวัลสะสมทั้งหมด: <b>${total.toFixed(2)} บาท</b>`);
   }
   return lines.join('\n');
+}
+
+
+// ══════════════════════════════════════════════
+//  PAID TOGGLE
+// ══════════════════════════════════════════════
+function togglePaid(entryId) {
+  const m = state.members.find(x => x.id === state.activeMemberId);
+  if (!m) return;
+  const entry = m.entries.find(e => e.id === entryId);
+  if (!entry) return;
+  entry.paid = !entry.paid;
+  persist();
+  // Update UI without full re-render
+  const item = document.getElementById('dayitem-' + entryId);
+  const btn = item?.querySelector('.btn-paid');
+  if (item && btn) {
+    if (entry.paid) {
+      item.classList.add('paid-day');
+      btn.classList.add('paid');
+      btn.textContent = '✅';
+      // Update earn label
+      const earnEl = item.querySelector('.day-earn');
+      if (earnEl && !earnEl.querySelector('.paid-badge')) {
+        earnEl.insertAdjacentHTML('beforeend', '<span class="paid-badge" style="font-size:12px;background:#E0FAF4;color:#00A878;border-radius:20px;padding:2px 10px;margin-left:8px;font-weight:700;">จ่ายแล้ว</span>');
+      }
+    } else {
+      item.classList.remove('paid-day');
+      btn.classList.remove('paid');
+      btn.textContent = '○';
+      item.querySelector('.paid-badge')?.remove();
+    }
+  }
+  // Sync to sheet
+  autoSyncSilent();
+  showToast(entry.paid ? '✅ บันทึกรับรางวัลแล้ว!' : '○ ยกเลิกรับรางวัล', entry.paid ? 'success' : '');
+}
+
+async function autoSyncSilent() {
+  if (!state.sheetUrl) return;
+  try {
+    await fetch(state.sheetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'pushAll',
+        allMembers: state.members.map(m => ({
+          id: m.id, name: m.name, emoji: m.emoji, gradient: m.gradient,
+          entries: m.entries
+        }))
+      })
+    });
+  } catch(e) {}
 }
 
 
