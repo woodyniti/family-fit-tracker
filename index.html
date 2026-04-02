@@ -621,6 +621,10 @@ body {
       <input type="number" class="form-input" id="memberWeightInput" placeholder="เช่น 60" step="0.1">
     </div>
     <div class="form-group">
+      <label class="form-lbl">🎂 วันเกิด <span style="font-size:13px;color:var(--text-light);font-weight:400;">(ไม่บังคับ)</span></label>
+      <input type="date" class="form-input" id="memberBirthdayInput">
+    </div>
+    <div class="form-group">
       <label class="form-lbl">สี</label>
       <div class="color-pickers" id="colorPickers"></div>
     </div>
@@ -706,6 +710,7 @@ function init() {
   renderHome();
   updateSheetLabel();
   setDefaultDate();
+  checkBirthdays();
   // Auto sync on startup
   autoSyncOnStart();
 }
@@ -832,7 +837,7 @@ function renderHome() {
     div.innerHTML = `
       <div class="member-avatar">${m.emoji}</div>
       <div class="member-name">${m.name}</div>
-      <div class="member-days">${t.days} วัน</div>
+      <div class="member-days">${t.days} วัน${m.birthday ? ` · ${calcAge(m.birthday)} ปี` : ''}</div>
       <div class="member-earn-label">รางวัลสะสม</div>
       <div class="member-earn">${fmt(Math.round(t.totalEarn*100)/100)} ฿</div>`;
     div.onclick = () => openMember(m.id);
@@ -1185,6 +1190,7 @@ function openAddMemberModal() {
   document.getElementById('memberNameInput').value = '';
   document.getElementById('memberEmojiInput').value = '';
   document.getElementById('memberWeightInput').value = '';
+  document.getElementById('memberBirthdayInput').value = '';
   document.getElementById('modalMemberTitle').textContent = '➕ เพิ่มสมาชิก';
   selectGrad(0);
   document.getElementById('modalMember').classList.add('open');
@@ -1199,10 +1205,12 @@ function saveMember() {
   if (editId) {
     const m = state.members.find(x => x.id === editId);
     const weight = parseFloat(document.getElementById('memberWeightInput').value) || null;
-    if (m) { m.name = name; m.emoji = emoji; m.gradient = selectedGrad; m.weight = weight; }
+    const birthday = document.getElementById('memberBirthdayInput').value || null;
+    if (m) { m.name = name; m.emoji = emoji; m.gradient = selectedGrad; m.weight = weight; m.birthday = birthday; }
   } else {
     const weight2 = parseFloat(document.getElementById('memberWeightInput').value) || null;
-    state.members.push({ id: 'm' + Date.now(), name, emoji, gradient: selectedGrad, weight: weight2, entries: [] });
+    const birthday2 = document.getElementById('memberBirthdayInput').value || null;
+    state.members.push({ id: 'm' + Date.now(), name, emoji, gradient: selectedGrad, weight: weight2, birthday: birthday2, entries: [] });
   }
   persist();
   closeModal('modalMember');
@@ -1217,7 +1225,7 @@ function renderSettings() {
     <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(124,77,255,.06);">
       <div class="cp g${m.gradient}" style="width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">${m.emoji}</div>
       <div style="flex:1"><div style="font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;">${m.name}</div>
-      <div style="font-size:11px;color:var(--text-light);">${m.entries.length} รายการ${m.weight ? ` · ⚖️ ${m.weight} กก.` : ''}</div></div>
+      <div style="font-size:11px;color:var(--text-light);">${m.entries.length} รายการ${m.weight ? ` · ⚖️ ${m.weight} กก.` : ''}${m.birthday ? ` · 🎂 ${calcAge(m.birthday)} ปี` : ''}</div></div>
       <button class="icon-btn btn-edit" onclick="editMember('${m.id}')">✏️</button>
       <button class="icon-btn btn-del" onclick="deleteMember('${m.id}')">🗑️</button>
     </div>`).join('') || `<div class="empty-state" style="padding:24px;">ไม่มีสมาชิก</div>`;
@@ -1237,6 +1245,7 @@ function editMember(id) {
   document.getElementById('memberNameInput').value = m.name;
   document.getElementById('memberEmojiInput').value = m.emoji;
   document.getElementById('memberWeightInput').value = m.weight || '';
+  document.getElementById('memberBirthdayInput').value = m.birthday || '';
   document.getElementById('modalMemberTitle').textContent = '✏️ แก้ไขสมาชิก';
   selectGrad(m.gradient);
   document.getElementById('modalMember').classList.add('open');
@@ -1593,6 +1602,95 @@ async function autoSyncSilent() {
       })
     });
   } catch(e) {}
+}
+
+
+// ══════════════════════════════════════════════
+//  BIRTHDAY
+// ══════════════════════════════════════════════
+function calcAge(birthday) {
+  if (!birthday) return null;
+  const today = new Date();
+  const bday  = new Date(birthday);
+  let age = today.getFullYear() - bday.getFullYear();
+  const m = today.getMonth() - bday.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < bday.getDate())) age--;
+  return age;
+}
+
+function isBirthdayToday(birthday) {
+  if (!birthday) return false;
+  const today = new Date();
+  const bday  = new Date(birthday);
+  return today.getMonth() === bday.getMonth() && today.getDate() === bday.getDate();
+}
+
+function checkBirthdays() {
+  const birthdayMembers = state.members.filter(m => m.birthday && isBirthdayToday(m.birthday));
+  if (birthdayMembers.length === 0) return;
+
+  const messages = [
+    '🎂 สุขสันต์วันเกิด',
+    '🎉 Happy Birthday',
+    '🌟 ขอให้มีความสุขมากๆ',
+    '🎈 วันพิเศษของคุณ',
+  ];
+
+  birthdayMembers.forEach((m, i) => {
+    const age = calcAge(m.birthday);
+    setTimeout(() => {
+      showBirthdayBanner(m, age);
+    }, i * 1000);
+  });
+}
+
+function showBirthdayBanner(member, age) {
+  // Remove existing banner
+  document.getElementById('birthdayBanner')?.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'birthdayBanner';
+  banner.style.cssText = `
+    position:fixed; top:0; left:0; right:0; z-index:999;
+    background:linear-gradient(135deg,#FF6B9D,#FFB800,#FF6B9D);
+    background-size:200% 100%; animation:bdayGrad 2s linear infinite;
+    padding:16px 20px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,.2);
+  `;
+
+  const wishes = [
+    `ขอให้มีสุขภาพแข็งแรง ออกกำลังกายสม่ำเสมอ 💪`,
+    `ขอให้ก้าวเดินได้ไกล มีพลังงานทุกวัน 🌟`,
+    `ขอให้มีความสุข สดใส แข็งแรงตลอดปี 🎊`,
+    `ขอให้ทุกก้าวที่เดิน นำมาซึ่งความสุข 👟`,
+  ];
+  const wish = wishes[Math.floor(Math.random() * wishes.length)];
+
+  banner.innerHTML = `
+    <div style="font-family:'Mitr',sans-serif;font-size:20px;font-weight:700;color:white;text-shadow:0 1px 4px rgba(0,0,0,.2);">
+      🎂 สุขสันต์วันเกิด ${member.emoji} ${member.name}!
+    </div>
+    <div style="font-size:15px;color:rgba(255,255,255,.95);margin-top:4px;font-weight:600;">
+      ${age ? `ครบ ${age} ปี · ` : ''}${wish}
+    </div>
+    <button onclick="this.parentElement.remove()" style="
+      position:absolute;top:10px;right:14px;
+      background:rgba(255,255,255,.3);border:none;border-radius:50%;
+      width:28px;height:28px;color:white;font-size:16px;cursor:pointer;
+    ">×</button>
+  `;
+
+  // Add gradient animation
+  if (!document.getElementById('bdayStyle')) {
+    const style = document.createElement('style');
+    style.id = 'bdayStyle';
+    style.textContent = `@keyframes bdayGrad { 0%{background-position:0%} 100%{background-position:200%} }`;
+    document.head.appendChild(style);
+  }
+
+  document.body.prepend(banner);
+
+  // Auto hide after 10 sec
+  setTimeout(() => banner.remove(), 10000);
 }
 
 
