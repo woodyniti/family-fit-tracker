@@ -689,6 +689,8 @@ function init() {
 
 function resetAllData() {
   if (!confirm('⚠️ ล้างข้อมูลทั้งหมดและเริ่มใหม่?\nข้อมูลจะหายถาวร')) return;
+  const input = prompt('พิมพ์คำว่า  confirm  เพื่อยืนยัน');
+  if (input !== 'confirm') { showToast('❌ ยกเลิก — พิมพ์ไม่ถูกต้อง', 'error'); return; }
   localStorage.removeItem('familyFit_v2');
   location.reload();
 }
