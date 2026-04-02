@@ -129,7 +129,7 @@ body {
 }
 
 /* ─── MEMBER CARDS ─── */
-.member-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px 16px; }
+.member-grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 0 16px 16px; }
 .member-card {
   border-radius: var(--radius);
   padding: 18px 16px;
@@ -155,6 +155,25 @@ body {
 .member-days { font-size:14px; color:rgba(255,255,255,.9); margin-top:2px; }
 .member-earn { font-family:'Mitr',sans-serif; font-size:22px; font-weight:600; color:white; margin-top:8px; }
 .member-earn-label { font-size:13px; color:rgba(255,255,255,.9); }
+.member-pill-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.member-pill {
+  background:rgba(255,255,255,0.22);
+  border-radius:20px; padding:4px 10px;
+  font-size:12px; color:white; font-weight:600;
+}
+.member-rank-badge {
+  background:rgba(255,255,255,0.25);
+  border-radius:12px; padding:8px 12px;
+  margin-top:10px; display:flex; align-items:center; gap:8px;
+}
+.member-rank-badge .rank-icon { font-size:22px; }
+.member-rank-badge .rank-info { flex:1; }
+.member-rank-badge .rank-name { font-size:13px; color:white; font-weight:700; line-height:1.2; }
+.member-rank-badge .rank-tier { font-size:11px; color:rgba(255,255,255,.8); }
+.rank-progress-wrap { margin-top:6px; }
+.rank-progress-bg { background:rgba(255,255,255,0.2); border-radius:10px; height:6px; overflow:hidden; }
+.rank-progress-fill { height:100%; border-radius:10px; background:white; }
+.rank-progress-label { font-size:10px; color:rgba(255,255,255,.8); margin-top:3px; }
 
 .member-card-add {
   border-radius: var(--radius);
@@ -451,6 +470,9 @@ body {
 
   <!-- Summary pills -->
   <div class="summary-row" style="padding-top:14px;" id="memberSummary"></div>
+
+  <!-- Rank card -->
+  <div id="memberRankCard"></div>
 
   <!-- Chart -->
   <div class="section-title" style="padding-top:4px;">📊 รางวัลรายเดือน</div>
@@ -818,10 +840,12 @@ function groupByMonth(entries) {
 }
 
 function memberTotals(member) {
-  const totalSteps = member.entries.reduce((s,e)=>s+e.steps,0);
+  const totalSteps    = member.entries.reduce((s,e)=>s+e.steps,0);
   const totalActivity = member.entries.reduce((s,e)=>s+e.activity,0);
-  const totalEarn = member.entries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0);
-  return { totalSteps, totalActivity, totalEarn, days: member.entries.length };
+  const totalEarn     = member.entries.reduce((s,e)=>s+calcEarn(e.steps,e.activity),0);
+  const totalKcal     = member.entries.reduce((s,e)=>s+(e.kcal||0),0);
+  const totalDist     = member.entries.reduce((s,e)=>s+(e.dist||0),0);
+  return { totalSteps, totalActivity, totalEarn, totalKcal, totalDist, days: member.entries.length };
 }
 
 // ══════════════════════════════════════════════
@@ -834,12 +858,42 @@ function renderHome() {
     const t = memberTotals(m);
     const div = document.createElement('div');
     div.className = `member-card g${m.gradient}`;
+    // Rank info
+    const { current: rc, next: rn } = getStepRank(t.totalSteps);
+    const pct = rc && rn ? Math.min(100, Math.round(((t.totalSteps - rc.steps) / (rn.steps - rc.steps)) * 100))
+               : rn ? Math.min(100, Math.round((t.totalSteps / rn.steps) * 100)) : 100;
+    const remainSteps = rn ? (rn.steps - t.totalSteps).toLocaleString('th-TH') : null;
+    const rankHTML = `
+      <div class="member-rank-badge">
+        <div class="rank-icon">${rc ? rc.icon : '👣'}</div>
+        <div class="rank-info">
+          <div class="rank-name">${rc ? rc.name : 'เริ่มออกกำลังกายเพื่อรับ Rank!'}</div>
+          <div class="rank-tier">${rc ? rc.tier : ''}</div>
+          ${rn ? `<div class="rank-progress-wrap">
+            <div class="rank-progress-bg"><div class="rank-progress-fill" style="width:${pct}%"></div></div>
+            <div class="rank-progress-label">เหลือ ${remainSteps} ก้าว → ${rn.icon} ${rn.name}</div>
+          </div>` : '<div class="rank-progress-label">🎉 พิชิตทุก Rank แล้ว!</div>'}
+        </div>
+      </div>`;
     div.innerHTML = `
-      <div class="member-avatar">${m.emoji}</div>
-      <div class="member-name">${m.name}</div>
-      <div class="member-days">${t.days} วัน${m.birthday ? ` · ${calcAge(m.birthday)} ปี` : ''}</div>
-      <div class="member-earn-label">รางวัลสะสม</div>
-      <div class="member-earn">${fmt(Math.round(t.totalEarn*100)/100)} ฿</div>`;
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <div class="member-avatar" style="margin-bottom:0;">${m.emoji}</div>
+        <div>
+          <div class="member-name">${m.name}</div>
+          <div class="member-days">${t.days} วัน${m.birthday ? ` · ${calcAge(m.birthday)} ปี` : ''}</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+          <div class="member-earn-label">รางวัลสะสม</div>
+          <div class="member-earn" style="margin-top:0;">${fmt(Math.round(t.totalEarn*100)/100)} ฿</div>
+        </div>
+      </div>
+      <div class="member-pill-row">
+        <div class="member-pill">👟 ${fmt(t.totalSteps)} ก้าว</div>
+        <div class="member-pill">🏃 ${fmt(t.totalActivity)}</div>
+        ${t.totalKcal > 0 ? `<div class="member-pill">🔥 ${fmt(Math.round(t.totalKcal))} kcal</div>` : ''}
+        ${t.totalDist > 0 ? `<div class="member-pill">📍 ${fmt(Math.round(t.totalDist*10)/10)} กม.</div>` : ''}
+      </div>
+      ${rankHTML}`;
     div.onclick = () => openMember(m.id);
     grid.appendChild(div);
   });
@@ -885,10 +939,15 @@ function renderMemberScreen() {
   // Summary pills
   const t = memberTotals(m);
   document.getElementById('memberSummary').innerHTML = `
-    <div class="sum-pill"><div class="lbl">👟 ก้าวรวม</div><div class="val" style="color:var(--accent)">${fmt(t.totalSteps)}</div><div class="unit">ก้าว</div></div>
+    <div class="sum-pill"><div class="lbl">📅 วัน</div><div class="val" style="color:#FF6B9D">${t.days}</div><div class="unit">วัน</div></div>
+    <div class="sum-pill"><div class="lbl">👟 ก้าวสะสม</div><div class="val" style="color:var(--accent)">${fmt(t.totalSteps)}</div><div class="unit">ก้าว</div></div>
     <div class="sum-pill"><div class="lbl">🏃 กิจกรรม</div><div class="val" style="color:var(--green)">${fmt(t.totalActivity)}</div><div class="unit">ครั้ง</div></div>
     <div class="sum-pill"><div class="lbl">💰 รางวัล</div><div class="val" style="color:var(--gold)">${fmt(Math.round(t.totalEarn))}</div><div class="unit">บาท</div></div>
-    <div class="sum-pill"><div class="lbl">📅 วัน</div><div class="val" style="color:#FF6B9D">${t.days}</div><div class="unit">วัน</div></div>`;
+    ${t.totalKcal > 0 ? `<div class="sum-pill"><div class="lbl">🔥 kcal</div><div class="val" style="color:#FF6B00">${fmt(Math.round(t.totalKcal))}</div><div class="unit">kcal</div></div>` : ''}
+    ${t.totalDist > 0 ? `<div class="sum-pill"><div class="lbl">📍 ระยะทาง</div><div class="val" style="color:#00A0C0">${fmt(Math.round(t.totalDist*10)/10)}</div><div class="unit">กม.</div></div>` : ''}`;
+  // Inject rank card after summary pills
+  const rankEl = document.getElementById('memberRankCard');
+  if (rankEl) rankEl.innerHTML = renderRankCard(t.totalSteps);
 
   renderMemberChart(m);
   renderMonthList(m);
@@ -1691,6 +1750,100 @@ function showBirthdayBanner(member, age) {
 
   // Auto hide after 10 sec
   setTimeout(() => banner.remove(), 10000);
+}
+
+
+// ══════════════════════════════════════════════
+//  STEP RANKS
+// ══════════════════════════════════════════════
+const STEP_RANKS = [
+  { steps:1250,      icon:'🏘️', tier:'นักสำรวจ',  name:'เดินครบ 1 กิโลเมตรแรก',          desc:'เท่ากับเดินขึ้นตึกมหานคร 3 รอบ' },
+  { steps:3750,      icon:'🏛️', tier:'นักสำรวจ',  name:'เดินรอบสนามหลวง 3 รอบ',          desc:'' },
+  { steps:6250,      icon:'🌳', tier:'นักสำรวจ',  name:'พิชิตสวนลุมพินี 2 รอบ',           desc:'หรือเดินจากสยามไปอนุสาวรีย์ชัยฯ' },
+  { steps:12500,     icon:'🏅', tier:'นักสำรวจ',  name:'เดินครบ 10 กิโลเมตร',             desc:'เท่ากับวิ่ง Mini Marathon' },
+  { steps:52500,     icon:'🏆', tier:'นักสำรวจ',  name:'จบระยะ Full Marathon',             desc:'42.195 km' },
+  { steps:125000,    icon:'🇹🇭', tier:'ผู้พิชิต',  name:'กรุงเทพฯ → พัทยา',               desc:'100 km' },
+  { steps:295000,    icon:'🏖️', tier:'ผู้พิชิต',  name:'กรุงเทพฯ → หัวหิน',              desc:'236 km' },
+  { steps:775000,    icon:'🌾', tier:'ผู้พิชิต',  name:'กรุงเทพฯ → อุบลราชธานี',         desc:'620 km' },
+  { steps:850000,    icon:'🏔️', tier:'ผู้พิชิต',  name:'กรุงเทพฯ → เชียงใหม่',           desc:'680 km' },
+  { steps:2060000,   icon:'🦅', tier:'ผู้พิชิต',  name:'แม่สาย → เบตง',                  desc:'เหนือสุดถึงใต้สุด 1,650 km' },
+  { steps:6250000,   icon:'✈️', tier:'ท่องโลก',   name:'ไทย → ญี่ปุ่น',                  desc:'5,000 km' },
+  { steps:11500000,  icon:'🐉', tier:'ท่องโลก',   name:'กำแพงเมืองจีน',                  desc:'9,200 km' },
+  { steps:15900000,  icon:'🌏', tier:'ท่องโลก',   name:'ทะลุแกนกลางโลก',                 desc:'12,742 km' },
+  { steps:50090000,  icon:'🌍', tier:'ท่องโลก',   name:'รอบโลก 1 รอบ',                   desc:'40,075 km' },
+  { steps:150000000, icon:'🌐', tier:'ท่องโลก',   name:'รอบโลก 3 รอบ',                   desc:'120,225 km' },
+  { steps:200000000, icon:'🩸', tier:'จักรวาล',   name:'เส้นเลือดในร่างกายมนุษย์',        desc:'160,000 km' },
+  { steps:480500000, icon:'🌙', tier:'จักรวาล',   name:'เดินทางถึงดวงจันทร์',             desc:'384,400 km' },
+  { steps:1250000000,icon:'🚀', tier:'จักรวาล',   name:'1,000,000 กิโลเมตร',              desc:'รอบโลก 25 รอบ' },
+];
+
+const TIER_COLORS = {
+  'นักสำรวจ': { bg:'#E8F5E9', color:'#2E7D32', badge:'#4CAF50' },
+  'ผู้พิชิต':  { bg:'#E3F2FD', color:'#1565C0', badge:'#2196F3' },
+  'ท่องโลก':  { bg:'#FFF3E0', color:'#E65100', badge:'#FF9800' },
+  'จักรวาล':  { bg:'#F3E5F5', color:'#6A1B9A', badge:'#9C27B0' },
+};
+
+function getStepRank(totalSteps) {
+  let current = null;
+  let next = STEP_RANKS[0];
+  for (let i = 0; i < STEP_RANKS.length; i++) {
+    if (totalSteps >= STEP_RANKS[i].steps) {
+      current = STEP_RANKS[i];
+      next = STEP_RANKS[i + 1] || null;
+    } else {
+      if (!current) next = STEP_RANKS[i];
+      break;
+    }
+  }
+  return { current, next };
+}
+
+function renderRankCard(totalSteps) {
+  const { current, next } = getStepRank(totalSteps);
+  const tc = current ? TIER_COLORS[current.tier] : TIER_COLORS['นักสำรวจ'];
+  const ntc = next ? TIER_COLORS[next.tier] : null;
+
+  let progressHTML = '';
+  if (next) {
+    const from = current ? current.steps : 0;
+    const pct = Math.min(100, Math.round(((totalSteps - from) / (next.steps - from)) * 100));
+    const remain = (next.steps - totalSteps).toLocaleString('th-TH');
+    progressHTML = `
+      <div style="margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-light);font-weight:600;margin-bottom:6px;">
+          <span>ถัดไป: ${next.icon} ${next.name}</span>
+          <span style="color:${ntc?.badge||'#7C4DFF'}">เหลือ ${remain} ก้าว</span>
+        </div>
+        <div style="background:#EEE;border-radius:10px;height:10px;overflow:hidden;">
+          <div style="height:100%;border-radius:10px;background:linear-gradient(90deg,${tc.badge},${ntc?.badge||tc.badge});width:${pct}%;transition:width 1s;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-xlight);margin-top:3px;text-align:right;">${pct}%</div>
+      </div>`;
+  } else {
+    progressHTML = `<div style="margin-top:10px;font-size:14px;color:#9C27B0;font-weight:700;">🎉 พิชิตทุก Rank แล้ว! ยอดเยี่ยมมาก!</div>`;
+  }
+
+  const currentHTML = current ? `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:36px;">${current.icon}</div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:${tc.badge};background:${tc.bg};padding:2px 10px;border-radius:20px;display:inline-block;margin-bottom:4px;">${current.tier}</div>
+        <div style="font-family:'Mitr',sans-serif;font-size:16px;font-weight:700;color:${tc.color};">${current.name}</div>
+        ${current.desc ? `<div style="font-size:12px;color:var(--text-light);">${current.desc}</div>` : ''}
+      </div>
+    </div>` :
+    `<div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:36px;">👣</div>
+      <div><div style="font-family:'Mitr',sans-serif;font-size:15px;color:var(--text-light);">เริ่มออกกำลังกายเพื่อรับ Rank แรก!</div></div>
+    </div>`;
+
+  return `
+    <div style="background:white;border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);margin:0 16px 14px;">
+      <div style="font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px;">🏅 Rank ปัจจุบัน</div>
+      ${currentHTML}
+      ${progressHTML}
+    </div>`;
 }
 
 
