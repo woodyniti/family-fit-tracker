@@ -739,29 +739,56 @@ function init() {
 
 async function autoSyncOnStart() {
   if (!state.sheetUrl) return;
-  const today = new Date().toDateString();
-  const lastSync = localStorage.getItem('familyFit_lastSync');
-  // Sync ทุกครั้งที่เปิด App (ไม่ใช่แค่ครั้งแรกของวัน)
   showSyncIndicator('syncing');
   try {
+    // ── STEP 1: ดึงข้อมูลจาก Sheet ก่อน (source of truth) ──
     const res = await fetch(state.sheetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'getAll' })
+    });
+    const data = await res.json();
+
+    if (data.ok && data.members && data.members.length > 0) {
+      // Merge Sheet → local
+      // Sheet เป็น source of truth สำหรับ entries
+      // local เป็น source of truth สำหรับ member profile (emoji, gradient, weight, birthday)
+      data.members.forEach(sm => {
+        const local = state.members.find(m => m.id === sm.id);
+        if (local) {
+          // เอา entries จาก Sheet (ข้อมูลล่าสุด)
+          // แต่ถ้า local มี entry ที่ Sheet ไม่มี (บันทึกออฟไลน์) ให้เก็บไว้ด้วย
+          const sheetDates = new Set(sm.entries.map(e => e.date));
+          const offlineEntries = local.entries.filter(e => !sheetDates.has(e.date));
+          local.entries = [...sm.entries, ...offlineEntries];
+          // Sort by date
+          local.entries.sort((a,b) => a.date.localeCompare(b.date));
+        } else {
+          // สมาชิกใหม่จาก Sheet ที่ local ไม่มี
+          state.members.push({ ...sm, entries: sm.entries });
+        }
+      });
+      persist();
+      renderHome();
+    }
+
+    // ── STEP 2: push local กลับขึ้น Sheet (sync ออฟไลน์ + paid status) ──
+    await fetch(state.sheetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'pushAll',
         allMembers: state.members.map(m => ({
           id: m.id, name: m.name, emoji: m.emoji, gradient: m.gradient,
+          weight: m.weight, birthday: m.birthday,
           entries: m.entries
         }))
       })
     });
-    const data = await res.json();
-    if (data.ok) {
-      localStorage.setItem('familyFit_lastSync', today);
-      showSyncIndicator('ok');
-    } else {
-      showSyncIndicator('error');
-    }
+
+    localStorage.setItem('familyFit_lastSync', new Date().toISOString());
+    showSyncIndicator('ok');
+
   } catch(e) {
     showSyncIndicator('error');
   }
@@ -772,9 +799,11 @@ function showSyncIndicator(status) {
   const el = document.getElementById('syncStatusHome');
   if (!el) return;
   if (status === 'syncing') {
-    el.innerHTML = `<div class="sync-row pending">⏳ กำลัง Sync ข้อมูลไป Google Sheets...</div>`;
+    el.innerHTML = `<div class="sync-row pending">⏳ กำลังดึงข้อมูลล่าสุดจาก Google Sheets...</div>`;
   } else if (status === 'ok') {
-    el.innerHTML = `<div class="sync-row">✅ Sync สำเร็จ — ${new Date().toLocaleTimeString('th-TH')}</div>`;
+    const lastSync = localStorage.getItem('familyFit_lastSync');
+    const syncTime = lastSync ? new Date(lastSync).toLocaleTimeString('th-TH') : new Date().toLocaleTimeString('th-TH');
+    el.innerHTML = `<div class="sync-row">✅ ข้อมูลล่าสุด — ${syncTime}</div>`;
     setTimeout(() => { el.innerHTML = ''; }, 4000);
   } else {
     el.innerHTML = `<div class="sync-row error">⚠️ Sync ไม่ได้ (ไม่มี internet)</div>`;
