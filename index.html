@@ -737,21 +737,26 @@ async function autoSyncOnStart() {
     const data = await res.json();
 
     if (data.ok && data.members && data.members.length > 0) {
-      // Merge Sheet → local
-      // Sheet เป็น source of truth สำหรับ entries
-      // local เป็น source of truth สำหรับ member profile (emoji, gradient, weight, birthday)
       data.members.forEach(sm => {
         const local = state.members.find(m => m.id === sm.id);
         if (local) {
-          // เอา entries จาก Sheet (ข้อมูลล่าสุด)
-          // แต่ถ้า local มี entry ที่ Sheet ไม่มี (บันทึกออฟไลน์) ให้เก็บไว้ด้วย
+          // Build local paid map — local เป็น source of truth สำหรับ paid
+          const localPaidMap = {};
+          local.entries.forEach(e => { localPaidMap[e.date] = e.paid || false; });
+
+          // Merge entries จาก Sheet + รักษา paid จาก local
           const sheetDates = new Set(sm.entries.map(e => e.date));
+          const mergedEntries = sm.entries.map(se => ({
+            ...se,
+            // ถ้า local tick ไว้ ให้ใช้ค่า local, ถ้า Sheet มี paid=true ก็ใช้ Sheet
+            paid: localPaidMap[se.date] || se.paid || false
+          }));
+
+          // เพิ่ม offline entries ที่ local มีแต่ Sheet ยังไม่มี
           const offlineEntries = local.entries.filter(e => !sheetDates.has(e.date));
-          local.entries = [...sm.entries, ...offlineEntries];
-          // Sort by date
+          local.entries = [...mergedEntries, ...offlineEntries];
           local.entries.sort((a,b) => a.date.localeCompare(b.date));
         } else {
-          // สมาชิกใหม่จาก Sheet ที่ local ไม่มี
           state.members.push({ ...sm, entries: sm.entries });
         }
       });
