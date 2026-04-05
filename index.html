@@ -759,16 +759,16 @@ async function autoSyncOnStart() {
       data.members.forEach(sm => {
         const local = state.members.find(m => m.id === sm.id);
         if (local) {
-          // Build local paid map — local เป็น source of truth สำหรับ paid
+          // paid map จาก local (สำหรับ entry ที่ tick ออฟไลน์ไว้)
           const localPaidMap = {};
           local.entries.forEach(e => { localPaidMap[e.date] = e.paid || false; });
 
-          // Merge entries จาก Sheet + รักษา paid จาก local
           const sheetDates = new Set(sm.entries.map(e => e.date));
           const mergedEntries = sm.entries.map(se => ({
             ...se,
-            // ถ้า local tick ไว้ ให้ใช้ค่า local, ถ้า Sheet มี paid=true ก็ใช้ Sheet
-            paid: localPaidMap[se.date] || se.paid || false
+            // ใช้ OR — ถ้า Sheet = yes หรือ local = true → ได้ true
+            // ทำให้ tick จากมือถือ (เก็บใน Sheet) มาโชว์บน PC ด้วย
+            paid: se.paid === true || localPaidMap[se.date] === true
           }));
 
           // เพิ่ม offline entries ที่ local มีแต่ Sheet ยังไม่มี
@@ -776,7 +776,11 @@ async function autoSyncOnStart() {
           local.entries = [...mergedEntries, ...offlineEntries];
           local.entries.sort((a,b) => a.date.localeCompare(b.date));
         } else {
-          state.members.push({ ...sm, entries: sm.entries });
+          // สมาชิกใหม่จาก Sheet — ใช้ข้อมูล Sheet ทั้งหมดรวม paid
+          state.members.push({
+            id: sm.id, name: sm.name, emoji: sm.emoji || '👤',
+            gradient: sm.gradient || 0, entries: sm.entries
+          });
         }
       });
       persist();
