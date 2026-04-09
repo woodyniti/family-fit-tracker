@@ -584,6 +584,7 @@ body {
         </a>
         <button class="btn-primary" style="background:linear-gradient(135deg,#00C896,#00A0A0); box-shadow:0 6px 20px rgba(0,200,150,.3); margin-bottom:10px;" onclick="syncFromSheet()">📥 ดึงข้อมูลจาก Sheet</button>
         <button class="btn-primary" style="background:linear-gradient(135deg,#FF6B9D,#FF8B6B); box-shadow:0 6px 20px rgba(255,107,157,.3); margin-bottom:10px;" onclick="pushAllToSheet()">📤 ส่งข้อมูลทั้งหมดไป Sheet</button>
+        <button class="btn-primary" style="background:linear-gradient(135deg,#FF9800,#F44336); box-shadow:0 4px 16px rgba(255,152,0,.3); margin-bottom:10px;" onclick="resetLocalAndPull()">🔄 ล้าง local แล้วดึงข้อมูลจาก Sheet ใหม่</button>
         <button class="btn-primary" style="background:linear-gradient(135deg,#888,#555); box-shadow:0 4px 16px rgba(0,0,0,.2);" onclick="resetAllData()">🗑️ ล้างข้อมูลทั้งหมด (เริ่มใหม่)</button>
       </div>
     </div>
@@ -702,31 +703,25 @@ function init() {
   if (saved) {
     const parsed = JSON.parse(saved);
     state = { ...state, ...parsed };
-    // Fix: if seed data has wrong year (2025 instead of 2026), patch it
+    // Fix year
     state.members.forEach(m => {
       m.entries.forEach(e => {
-        if (e.date && e.date.startsWith('2025-')) {
-          e.date = e.date.replace('2025-', '2026-');
-        }
+        if (e.date && e.date.startsWith('2025-')) e.date = e.date.replace('2025-', '2026-');
       });
     });
-    persist();
   } else {
-    // Seed with "แม่" + March data
-    state.members = [{
-      id: 'm1', name: 'แม่', emoji: '👩', gradient: 1,
-      entries: MARCH_DATA.map((d, i) => ({ id: `e${i}`, ...d }))
-    }];
+    // ครั้งแรก — ไม่ seed สมาชิก รอดึงจาก Sheet
+    state.members = [];
     persist();
   }
-  // โหลด Telegram credentials จาก localStorage (ไม่ฝังใน code)
+
+  // โหลด Telegram credentials จาก localStorage
   const savedTg = localStorage.getItem('familyFit_tg');
   if (savedTg) {
     const tg = JSON.parse(savedTg);
     state.tgToken = tg.token || '';
     state.tgChatId = tg.chatId || '';
   } else {
-    // ใส่ค่า default ไว้ใน localStorage ครั้งแรก
     localStorage.setItem('familyFit_tg', JSON.stringify({
       token: '8798481248:AAEjy4-yFbgKUPG2px1_wTBg3cT0UJkroJs',
       chatId: '2055440219'
@@ -734,12 +729,13 @@ function init() {
     state.tgToken = '8798481248:AAEjy4-yFbgKUPG2px1_wTBg3cT0UJkroJs';
     state.tgChatId = '2055440219';
   }
+
   buildColorPickers();
   renderHome();
   updateSheetLabel();
   setDefaultDate();
   checkBirthdays();
-  // Auto sync on startup — pull from Sheet first
+  // Pull จาก Sheet ก่อนเสมอ — Sheet คือ source of truth
   autoSyncOnStart();
 }
 
@@ -759,34 +755,33 @@ async function autoSyncOnStart() {
       // Sheet เป็น source of truth สำหรับ list สมาชิก
       // เริ่มจาก Sheet members แล้ว merge ข้อมูล local เข้าไป
 
+      // ── Sheet = master list สมาชิก ──
+      // ทุกเครื่องจะ follow Sheet เสมอ ถ้าลบใน Sheet ทุกเครื่องจะหายตาม
+      const sheetIds   = new Set(data.members.map(m => m.id));
+      const sheetNames = new Set(data.members.map(m => m.name.trim().toLowerCase()));
+
       const newMembers = data.members.map(sm => {
-        // หา local member ที่ตรงกัน (by id ก่อน แล้ว fallback by ชื่อ)
         const local = state.members.find(m => m.id === sm.id)
                    || state.members.find(m => m.name.trim().toLowerCase() === sm.name.trim().toLowerCase());
 
-        // paid map จาก local
         const localPaidMap = {};
         if (local) local.entries.forEach(e => { localPaidMap[e.date] = e.paid || false; });
 
         const sheetDates = new Set(sm.entries.map(e => e.date));
         const mergedEntries = sm.entries.map(se => ({
           ...se,
-          paid: se.paid === true || (localPaidMap[se.date] === true)
+          paid: se.paid === true || localPaidMap[se.date] === true
         }));
 
-        // offline entries ที่ local มีแต่ Sheet ไม่มี
         if (local) {
-          const offlineEntries = local.entries.filter(e => !sheetDates.has(e.date));
-          mergedEntries.push(...offlineEntries);
+          local.entries.filter(e => !sheetDates.has(e.date))
+                       .forEach(e => mergedEntries.push(e));
         }
         mergedEntries.sort((a,b) => a.date.localeCompare(b.date));
 
         return {
-          // ใช้ id จาก Sheet เป็นหลัก
-          id: sm.id,
-          name: sm.name,
-          // ใช้ profile จาก local ถ้ามี (emoji, gradient, weight, birthday)
-          emoji:    local?.emoji    || sm.emoji    || '👤',
+          id: sm.id, name: sm.name,
+          emoji:    local?.emoji    !== undefined ? local.emoji    : (sm.emoji    || '👤'),
           gradient: local?.gradient !== undefined ? local.gradient : (sm.gradient || 0),
           weight:   local?.weight   || sm.weight   || null,
           birthday: local?.birthday || sm.birthday || null,
@@ -794,13 +789,13 @@ async function autoSyncOnStart() {
         };
       });
 
-      // หา local entries ที่มีสมาชิกไม่อยู่ใน Sheet เลย (เครื่องนี้เพิ่งเพิ่มแต่ยังไม่ sync)
-      const sheetIds = new Set(data.members.map(m => m.id));
-      const sheetNames = new Set(data.members.map(m => m.name.trim().toLowerCase()));
+      // local-only: เฉพาะสมาชิกที่เพิ่งสร้างในเครื่องนี้ แต่ยังไม่ sync ขึ้น Sheet
       const localOnlyMembers = state.members.filter(m =>
         !sheetIds.has(m.id) && !sheetNames.has(m.name.trim().toLowerCase())
       );
 
+      // ── สำคัญ: replace state ด้วย Sheet list เป็นหลัก ──
+      // สมาชิกที่ถูกลบใน Sheet จะหายไปจาก local อัตโนมัติ
       state.members = [...newMembers, ...localOnlyMembers];
       persist();
       renderHome();
@@ -843,6 +838,15 @@ function showSyncIndicator(status) {
     el.innerHTML = `<div class="sync-row error">⚠️ Sync ไม่ได้ (ไม่มี internet)</div>`;
     setTimeout(() => { el.innerHTML = ''; }, 5000);
   }
+}
+
+function resetLocalAndPull() {
+  if (!confirm('ล้างข้อมูลในเครื่องนี้แล้วดึงจาก Google Sheets ใหม่?')) return;
+  localStorage.removeItem('familyFit_v2');
+  localStorage.removeItem('familyFit_lastSync');
+  state.members = [];
+  showToast('🔄 กำลังดึงข้อมูลจาก Sheet...', 'info');
+  autoSyncOnStart();
 }
 
 function resetAllData() {
