@@ -756,38 +756,57 @@ async function autoSyncOnStart() {
     const data = await res.json();
 
     if (data.ok && data.members && data.members.length > 0) {
-      data.members.forEach(sm => {
-        const local = state.members.find(m => m.id === sm.id);
+      // Sheet เป็น source of truth สำหรับ list สมาชิก
+      // เริ่มจาก Sheet members แล้ว merge ข้อมูล local เข้าไป
+
+      const newMembers = data.members.map(sm => {
+        // หา local member ที่ตรงกัน (by id ก่อน แล้ว fallback by ชื่อ)
+        const local = state.members.find(m => m.id === sm.id)
+                   || state.members.find(m => m.name.trim().toLowerCase() === sm.name.trim().toLowerCase());
+
+        // paid map จาก local
+        const localPaidMap = {};
+        if (local) local.entries.forEach(e => { localPaidMap[e.date] = e.paid || false; });
+
+        const sheetDates = new Set(sm.entries.map(e => e.date));
+        const mergedEntries = sm.entries.map(se => ({
+          ...se,
+          paid: se.paid === true || (localPaidMap[se.date] === true)
+        }));
+
+        // offline entries ที่ local มีแต่ Sheet ไม่มี
         if (local) {
-          // paid map จาก local (สำหรับ entry ที่ tick ออฟไลน์ไว้)
-          const localPaidMap = {};
-          local.entries.forEach(e => { localPaidMap[e.date] = e.paid || false; });
-
-          const sheetDates = new Set(sm.entries.map(e => e.date));
-          const mergedEntries = sm.entries.map(se => ({
-            ...se,
-            // ใช้ OR — ถ้า Sheet = yes หรือ local = true → ได้ true
-            // ทำให้ tick จากมือถือ (เก็บใน Sheet) มาโชว์บน PC ด้วย
-            paid: se.paid === true || localPaidMap[se.date] === true
-          }));
-
-          // เพิ่ม offline entries ที่ local มีแต่ Sheet ยังไม่มี
           const offlineEntries = local.entries.filter(e => !sheetDates.has(e.date));
-          local.entries = [...mergedEntries, ...offlineEntries];
-          local.entries.sort((a,b) => a.date.localeCompare(b.date));
-        } else {
-          // สมาชิกใหม่จาก Sheet — ใช้ข้อมูล Sheet ทั้งหมดรวม paid
-          state.members.push({
-            id: sm.id, name: sm.name, emoji: sm.emoji || '👤',
-            gradient: sm.gradient || 0, entries: sm.entries
-          });
+          mergedEntries.push(...offlineEntries);
         }
+        mergedEntries.sort((a,b) => a.date.localeCompare(b.date));
+
+        return {
+          // ใช้ id จาก Sheet เป็นหลัก
+          id: sm.id,
+          name: sm.name,
+          // ใช้ profile จาก local ถ้ามี (emoji, gradient, weight, birthday)
+          emoji:    local?.emoji    || sm.emoji    || '👤',
+          gradient: local?.gradient !== undefined ? local.gradient : (sm.gradient || 0),
+          weight:   local?.weight   || sm.weight   || null,
+          birthday: local?.birthday || sm.birthday || null,
+          entries: mergedEntries
+        };
       });
+
+      // หา local entries ที่มีสมาชิกไม่อยู่ใน Sheet เลย (เครื่องนี้เพิ่งเพิ่มแต่ยังไม่ sync)
+      const sheetIds = new Set(data.members.map(m => m.id));
+      const sheetNames = new Set(data.members.map(m => m.name.trim().toLowerCase()));
+      const localOnlyMembers = state.members.filter(m =>
+        !sheetIds.has(m.id) && !sheetNames.has(m.name.trim().toLowerCase())
+      );
+
+      state.members = [...newMembers, ...localOnlyMembers];
       persist();
       renderHome();
     }
 
-    // ── STEP 2: PUSH local กลับขึ้น Sheet (offline entries + paid status) ──
+    // ── STEP 2: PUSH กลับขึ้น Sheet (เฉพาะ offline entries + paid status ที่ยังไม่ sync) ──
     await fetch(state.sheetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
@@ -796,7 +815,7 @@ async function autoSyncOnStart() {
         allMembers: state.members.map(m => ({
           id: m.id, name: m.name, emoji: m.emoji, gradient: m.gradient,
           weight: m.weight, birthday: m.birthday,
-          entries: m.entries  // includes paid field
+          entries: m.entries
         }))
       })
     });
